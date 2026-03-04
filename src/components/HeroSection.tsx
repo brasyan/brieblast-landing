@@ -30,12 +30,12 @@ const HeroSection = () => {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <button className="px-8 py-4 rounded-lg bg-primary text-primary-foreground font-bold text-lg glow-cheese hover:scale-105 transition-transform">
+          <a href="#pricing" className="px-8 py-4 rounded-lg bg-primary text-primary-foreground font-bold text-lg glow-cheese hover:scale-105 transition-transform">
             Get Started, Nerd 🚀
-          </button>
-          <button className="px-8 py-4 rounded-lg border border-secondary text-secondary font-bold text-lg hover:bg-secondary/10 transition-colors">
+          </a>
+          <a href="#pricing" className="px-8 py-4 rounded-lg border border-secondary text-secondary font-bold text-lg hover:bg-secondary/10 transition-colors">
             View Pricing 💸
-          </button>
+          </a>
         </div>
 
         <div className="mt-16 flex items-center justify-center gap-8 text-muted-foreground text-sm">
