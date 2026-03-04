@@ -18,6 +18,7 @@ const FooterSection = () => {
               <li className="hover:text-primary cursor-pointer transition-colors"><a href="#pricing">Pricing</a></li>
               <li className="hover:text-primary cursor-pointer transition-colors"><a href="#">Status Page</a></li>
               <li className="hover:text-primary cursor-pointer transition-colors"><a href="#">Blog (coming soon™)</a></li>
+              <li className="hover:text-primary cursor-pointer transition-colors"><a href="/cheese-stocks">Cheese Stocks 📈</a></li>
             </ul>
           </div>
           <div>
