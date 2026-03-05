@@ -66,27 +66,6 @@ const features = [
     glowClass: "glow-cheese",
   },
   {
-    icon: MousePointerClick,
-    title: "One-Click WordPress",
-    description: "Deploy WordPress faster than you can argue about whether Gutenberg is good. (It's fine.)",
-    meme: "🖱️",
-    glowClass: "glow-pink",
-  },
-  {
-    icon: Mail,
-    title: "Email Hosting",
-    description: "Professional email that doesn't end up in spam. Unlike your newsletter. Sorry.",
-    meme: "📧",
-    glowClass: "glow-cyan",
-  },
-  {
-    icon: Code2,
-    title: "Dev Environments",
-    description: "Staging, dev, prod — all isolated. No more 'oops I pushed to production' at 4PM Friday.",
-    meme: "🧪",
-    glowClass: "glow-cheese",
-  },
-  {
     icon: Link,
     title: "Custom Domains",
     description: "Your brand, your rules. We handle the DNS magic so you don't have to Google it at 2AM.",
@@ -144,7 +123,7 @@ const Features = () => {
               The Full <span className="text-gradient-cheese">Cheese Board</span>
             </h2>
             <p className="text-muted-foreground font-meme max-w-xl mx-auto">
-              12 reasons why switching to BrieHosting is the smartest thing you'll do this year. (Besides buying more cheese.)
+              9 reasons why switching to BrieHosting is the smartest thing you'll do this year. (Besides buying more cheese.)
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
