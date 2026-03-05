@@ -10,6 +10,7 @@ const NavBar = () => {
           <a href="#features" className="hover:text-primary transition-colors">Features</a>
           <a href="#pricing" className="hover:text-primary transition-colors">Pricing</a>
           <a href="/status" className="hover:text-primary transition-colors">Status</a>
+          <a href="/team" className="hover:text-primary transition-colors">Team</a>
         </div>
         <a href="#login" className="inline-block px-4 py-2 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-105 transition-transform">
           Login 🧀
