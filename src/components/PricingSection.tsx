@@ -107,7 +107,7 @@ const PricingSection = () => {
               </ul>
 
               <a
-                href="#"
+                href="/signup"
                 className={`w-full py-3 rounded-lg font-bold text-lg transition-all hover:scale-105 text-center block ${
                   plan.popular
                     ? "bg-primary text-primary-foreground glow-cheese"
