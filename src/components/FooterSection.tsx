@@ -28,7 +28,7 @@ const FooterSection = () => {
               <li className="hover:text-primary cursor-pointer transition-colors"><a href="/terms">Terms of Service</a></li>
               <li className="hover:text-primary cursor-pointer transition-colors"><a href="/privacy">Privacy Policy</a></li>
               <li className="hover:text-primary cursor-pointer transition-colors"><a href="/cookies">Cookie Policy 🍪</a></li>
-              <li className="hover:text-primary cursor-pointer transition-colors"><a href="#">GDPR (we got you)</a></li>
+              <li className="hover:text-primary cursor-pointer transition-colors"><a href="/privacy">GDPR (we got you)</a></li>
             </ul>
           </div>
         </div>
