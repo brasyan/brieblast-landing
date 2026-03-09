@@ -16,6 +16,8 @@ import Privacy from "./pages/Privacy";
 import Cookies from "./pages/Cookies";
 import Blog from "./pages/Blog";
 import Interns from "./pages/Interns";
+import SSOCallback from "./pages/SSOCallback";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -29,7 +31,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/features" element={<Features />} />
           <Route path="/status" element={<Status />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/team" element={<Team />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
@@ -38,6 +40,7 @@ const App = () => (
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/interns" element={<Interns />} />
+          <Route path="/sso-callback" element={<SSOCallback />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

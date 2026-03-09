@@ -1,59 +1,61 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
 import { useState } from "react";
-
-// ---------------------------------------------------------------------------
-// HOW TO ADD AUTHENTICATION LOGIC LATER
-// ---------------------------------------------------------------------------
-// 1. The project already ships `react-hook-form` + `zod` + `@hookform/resolvers`.
-//    Use them to validate the sign-up form:
-//
-//    import { useForm } from "react-hook-form";
-//    import { z } from "zod";
-//    import { zodResolver } from "@hookform/resolvers/zod";
-//
-//    const schema = z.object({
-//      name: z.string().min(2),
-//      email: z.string().email(),
-//      password: z.string().min(8),
-//      confirm: z.string(),
-//    }).refine((d) => d.password === d.confirm, {
-//      message: "Passwords don't match",
-//      path: ["confirm"],
-//    });
-//
-//    const { register, handleSubmit, formState: { errors } } = useForm({
-//      resolver: zodResolver(schema),
-//    });
-//
-// 2. Submit to your API endpoint:
-//
-//    const onSubmit = async (data) => {
-//      const res = await fetch("/api/auth/register", {
-//        method: "POST",
-//        headers: { "Content-Type": "application/json" },
-//        body: JSON.stringify(data),
-//      });
-//      if (res.ok) {
-//        // Auto-login or redirect to /login
-//      }
-//    };
-//
-// 3. Redirect on success with `useNavigate` from react-router-dom:
-//    const navigate = useNavigate();
-//    navigate("/dashboard");
-//
-// 4. For in-line validation errors, render `errors.email?.message` etc. under
-//    each field using the same `text-destructive` text style.
-// ---------------------------------------------------------------------------
+import { useSignUp } from "@clerk/react";
 
 const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const { signUp, isLoaded } = useSignUp();
+  const navigate = useNavigate();
 
-  // Placeholder — replace with real submit handler (see comments above)
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLoaded) return;
+    setError("");
+    try {
+      const result = await signUp.create({ emailAddress: email, password, firstName: name });
+      if (result.status === "complete") {
+        navigate("/dashboard");
+      } else {
+        setError("Please check your email to verify your account before continuing.");
+      }
+    } catch (err: unknown) {
+      const clerkError = err as { errors?: { message: string }[] };
+      setError(clerkError?.errors?.[0]?.message ?? "Sign up failed. Please try again.");
+    }
+  };
+
+  const handleGoogleOAuth = async () => {
+    if (!isLoaded) return;
+    try {
+      await signUp.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/dashboard",
+      });
+    } catch (err: unknown) {
+      const clerkError = err as { errors?: { message: string }[] };
+      setError(clerkError?.errors?.[0]?.message ?? "Google sign-up failed. Please try again.");
+    }
+  };
+
+  const handleGithubOAuth = async () => {
+    if (!isLoaded) return;
+    try {
+      await signUp.authenticateWithRedirect({
+        strategy: "oauth_github",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/dashboard",
+      });
+    } catch (err: unknown) {
+      const clerkError = err as { errors?: { message: string }[] };
+      setError(clerkError?.errors?.[0]?.message ?? "GitHub sign-up failed. Please try again.");
+    }
   };
 
   return (
@@ -95,6 +97,8 @@ const SignUp = () => {
                 id="name"
                 type="text"
                 placeholder="Your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
               />
             </div>
@@ -113,6 +117,8 @@ const SignUp = () => {
                 id="email"
                 type="email"
                 placeholder="you@brie.be"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
               />
             </div>
@@ -131,6 +137,8 @@ const SignUp = () => {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Min. 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-10 py-3 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
               />
               <button
@@ -187,6 +195,7 @@ const SignUp = () => {
           </div>
 
           {/* Submit */}
+          {error && <p className="text-sm text-destructive font-meme">{error}</p>}
           <button
             type="submit"
             className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-bold text-base glow-cheese hover:scale-105 transition-transform"
@@ -206,6 +215,7 @@ const SignUp = () => {
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
+            onClick={handleGoogleOAuth}
             className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
           >
             {/* Replace with a real Google SVG icon when wiring up OAuth */}
@@ -214,6 +224,7 @@ const SignUp = () => {
           </button>
           <button
             type="button"
+            onClick={handleGithubOAuth}
             className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
           >
             {/* Replace with a real GitHub SVG icon when wiring up OAuth */}

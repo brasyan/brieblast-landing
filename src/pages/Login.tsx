@@ -1,53 +1,59 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
-
-// ---------------------------------------------------------------------------
-// HOW TO ADD AUTHENTICATION LOGIC LATER
-// ---------------------------------------------------------------------------
-// 1. Install a form library if needed — the project already includes
-//    `react-hook-form` and `zod`, so use those for validation.
-//
-// 2. Replace the placeholder `handleSubmit` with a real API call, e.g.:
-//
-//    import { useForm } from "react-hook-form";
-//    import { z } from "zod";
-//    import { zodResolver } from "@hookform/resolvers/zod";
-//
-//    const schema = z.object({
-//      email: z.string().email(),
-//      password: z.string().min(8),
-//    });
-//
-//    const { register, handleSubmit, formState: { errors } } = useForm({
-//      resolver: zodResolver(schema),
-//    });
-//
-//    const onSubmit = async (data) => {
-//      const res = await fetch("/api/auth/login", {
-//        method: "POST",
-//        headers: { "Content-Type": "application/json" },
-//        body: JSON.stringify(data),
-//      });
-//      if (res.ok) {
-//        // store token/session, then navigate to /dashboard
-//      }
-//    };
-//
-// 3. Use `react-router-dom`'s `useNavigate` to redirect on success:
-//    const navigate = useNavigate();
-//    navigate("/dashboard");
-//
-// 4. For persisting auth state, consider React Context or a library like
-//    Zustand / React Query's mutation hooks.
-// ---------------------------------------------------------------------------
+import { useSignIn } from "@clerk/react";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const { signIn, isLoaded } = useSignIn();
+  const navigate = useNavigate();
 
-  // Placeholder — replace with real submit handler (see comments above)
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLoaded) return;
+    setError("");
+    try {
+      const result = await signIn.create({ identifier: email, password });
+      if (result.status === "complete") {
+        navigate("/dashboard");
+      } else {
+        setError("Additional verification required. Please check your email or authenticator app.");
+      }
+    } catch (err: unknown) {
+      const clerkError = err as { errors?: { message: string }[] };
+      setError(clerkError?.errors?.[0]?.message ?? "Login failed. Please try again.");
+    }
+  };
+
+  const handleGoogleOAuth = async () => {
+    if (!isLoaded) return;
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/dashboard",
+      });
+    } catch (err: unknown) {
+      const clerkError = err as { errors?: { message: string }[] };
+      setError(clerkError?.errors?.[0]?.message ?? "Google sign-in failed. Please try again.");
+    }
+  };
+
+  const handleGithubOAuth = async () => {
+    if (!isLoaded) return;
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_github",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/dashboard",
+      });
+    } catch (err: unknown) {
+      const clerkError = err as { errors?: { message: string }[] };
+      setError(clerkError?.errors?.[0]?.message ?? "GitHub sign-in failed. Please try again.");
+    }
   };
 
   return (
@@ -89,6 +95,8 @@ const Login = () => {
                 id="email"
                 type="email"
                 placeholder="you@brie.be"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
               />
             </div>
@@ -117,6 +125,8 @@ const Login = () => {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full pl-10 pr-10 py-3 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
               />
               <button
@@ -131,6 +141,7 @@ const Login = () => {
           </div>
 
           {/* Submit */}
+          {error && <p className="text-sm text-destructive font-meme">{error}</p>}
           <button
             type="submit"
             className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-bold text-base glow-cheese hover:scale-105 transition-transform"
@@ -150,6 +161,7 @@ const Login = () => {
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
+            onClick={handleGoogleOAuth}
             className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
           >
             {/* Replace with a real Google SVG icon when wiring up OAuth */}
@@ -158,6 +170,7 @@ const Login = () => {
           </button>
           <button
             type="button"
+            onClick={handleGithubOAuth}
             className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
           >
             {/* Replace with a real GitHub SVG icon when wiring up OAuth */}
