@@ -1,57 +1,66 @@
-import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { USERS } from "@/data/users";
+
+// ---------------------------------------------------------------------------
+// HOW TO ADD AUTHENTICATION LOGIC LATER
+// ---------------------------------------------------------------------------
+// 1. Install a form library if needed — the project already includes
+//    `react-hook-form` and `zod`, so use those for validation.
+//
+// 2. Replace the placeholder `handleSubmit` with a real API call, e.g.:
+//
+//    import { useForm } from "react-hook-form";
+//    import { z } from "zod";
+//    import { zodResolver } from "@hookform/resolvers/zod";
+//
+//    const schema = z.object({
+//      email: z.string().email(),
+//      password: z.string().min(8),
+//    });
+//
+//    const { register, handleSubmit, formState: { errors } } = useForm({
+//      resolver: zodResolver(schema),
+//    });
+//
+//    const onSubmit = async (data) => {
+//      const res = await fetch("/api/auth/login", {
+//        method: "POST",
+//        headers: { "Content-Type": "application/json" },
+//        body: JSON.stringify(data),
+//      });
+//      if (res.ok) {
+//        // store token/session, then navigate to /dashboard
+//      }
+//    };
+//
+// 3. Use `react-router-dom`'s `useNavigate` to redirect on success:
+//    const navigate = useNavigate();
+//    navigate("/dashboard");
+//
+// 4. For persisting auth state, consider React Context or a library like
+//    Zustand / React Query's mutation hooks.
+// ---------------------------------------------------------------------------
 
 const Login = () => {
-  const { login } = useAuth();
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [showHints, setShowHints] = useState(false);
 
+  // Placeholder — replace with real submit handler (see comments above)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setIsLoading(true);
-    setTimeout(() => {
-      const success = login(email, password);
-      if (success) {
-        navigate("/dashboard");
-      } else {
-        setError("❌ Wrong email or password. Are you even a real cheese fan?");
-      }
-      setIsLoading(false);
-    }, 600);
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-16 relative overflow-hidden">
-      {/* Floating cheese background decorations */}
-      <span className="absolute top-10 left-10 text-5xl opacity-20 animate-float pointer-events-none" style={{ animationDelay: "0s" }}>🧀</span>
-      <span className="absolute top-32 right-16 text-3xl opacity-15 animate-float pointer-events-none" style={{ animationDelay: "1.5s" }}>🧀</span>
-      <span className="absolute bottom-20 left-20 text-4xl opacity-20 animate-float pointer-events-none" style={{ animationDelay: "3s" }}>🧀</span>
-      <span className="absolute bottom-40 right-10 text-2xl opacity-10 animate-float pointer-events-none" style={{ animationDelay: "0.8s" }}>🧀</span>
-      <span className="absolute top-1/2 left-5 text-3xl opacity-10 animate-float pointer-events-none" style={{ animationDelay: "2s" }}>🧀</span>
-
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-16">
       {/* Logo */}
-      <Link to="/" className="mb-10 font-bold text-2xl hover:opacity-80 transition-opacity z-10">
+      <Link to="/" className="mb-10 font-bold text-2xl hover:opacity-80 transition-opacity">
         <span className="text-gradient-cheese">Brie</span>
         <span className="text-foreground">Hosting</span>
         <span className="text-secondary">.be</span>
       </Link>
 
       {/* Card */}
-      <div className="w-full max-w-md rounded-2xl border-2 border-primary/40 bg-card p-8 glow-cheese z-10">
-        {/* Floating cheese icon */}
-        <div className="text-center mb-6">
-          <span className="text-6xl animate-float inline-block">🧀</span>
-        </div>
-
+      <div className="w-full max-w-md rounded-2xl border-2 border-border bg-card p-8 glow-cheese">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-block mb-4 px-4 py-2 rounded-full border border-primary/30 bg-primary/10 animate-pulse-glow">
@@ -64,13 +73,6 @@ const Login = () => {
             Your gouda stuff is waiting for you.
           </p>
         </div>
-
-        {/* Error banner */}
-        {error && (
-          <div className="mb-5 px-4 py-3 rounded-xl border border-destructive/50 bg-destructive/10 text-destructive text-sm font-meme">
-            {error}
-          </div>
-        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -86,10 +88,7 @@ const Login = () => {
               <input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@brie.be"
-                required
                 className="w-full pl-10 pr-4 py-3 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
               />
             </div>
@@ -97,9 +96,19 @@ const Login = () => {
 
           {/* Password field */}
           <div className="space-y-1.5">
-            <label htmlFor="password" className="block text-sm font-medium text-foreground">
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                Password
+              </label>
+              {/* Placeholder — wire up to a /forgot-password route later */}
+              <a
+                href="#"
+                onClick={(e) => e.preventDefault()}
+                className="text-xs text-primary hover:underline font-meme"
+              >
+                Forgot password? 😬
+              </a>
+            </div>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 <Lock className="w-4 h-4" />
@@ -107,10 +116,7 @@ const Login = () => {
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                required
                 className="w-full pl-10 pr-10 py-3 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
               />
               <button
@@ -127,38 +133,37 @@ const Login = () => {
           {/* Submit */}
           <button
             type="submit"
-            disabled={isLoading}
-            className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-bold text-base glow-cheese hover:scale-105 transition-transform disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-bold text-base glow-cheese hover:scale-105 transition-transform"
           >
-            {isLoading ? (
-              <span className="inline-block animate-spin">🧀</span>
-            ) : (
-              "Log In 🧀"
-            )}
+            Log In 🧀
           </button>
         </form>
 
-        {/* Demo credentials hint */}
-        <div className="mt-6">
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground font-meme">or</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        {/* OAuth placeholder buttons — connect providers in the auth logic step */}
+        <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => setShowHints((v) => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-muted/30 text-xs text-muted-foreground font-meme hover:border-primary/40 transition-colors"
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
           >
-            <span>🧪 Demo accounts (shh, don't tell the cheese police)</span>
-            <ChevronDown className={`w-4 h-4 transition-transform ${showHints ? "rotate-180" : ""}`} />
+            {/* Replace with a real Google SVG icon when wiring up OAuth */}
+            <span>G</span>
+            Google
           </button>
-          {showHints && (
-            <div className="mt-2 rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-              {USERS.map((u) => (
-                <div key={u.id} className="text-xs font-meme border-b border-border last:border-0 pb-3 last:pb-0">
-                  <p className="text-foreground font-bold">{u.name} — {u.plan}</p>
-                  <p className="text-muted-foreground">📧 {u.email}</p>
-                  <p className="text-muted-foreground">🔑 {u.password}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <button
+            type="button"
+            className="flex items-center justify-center gap-2 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
+          >
+            {/* Replace with a real GitHub SVG icon when wiring up OAuth */}
+            <span>⌥</span>
+            GitHub
+          </button>
         </div>
 
         {/* Sign-up link */}
@@ -171,7 +176,7 @@ const Login = () => {
       </div>
 
       {/* Footer note */}
-      <p className="mt-8 text-xs text-muted-foreground font-meme text-center z-10">
+      <p className="mt-8 text-xs text-muted-foreground font-meme text-center">
         © 2026 BrieHosting.be — Made with 🧀 in Belgium
       </p>
     </div>
