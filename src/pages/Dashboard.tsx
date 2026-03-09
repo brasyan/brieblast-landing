@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { Globe, Database, HardDrive, Wifi, Plus, Settings, FileText, MessageSquare } from "lucide-react";
 
 interface Website {
@@ -34,6 +36,8 @@ const statusConfig: Record<Website["status"], { classes: string }> = {
 };
 
 const Dashboard = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
       {/* Minimal Dashboard Header */}
@@ -43,7 +47,10 @@ const Dashboard = () => {
             <span className="text-gradient-cheese">Brie</span>
             <span className="text-foreground">Hosting</span>
           </a>
-          <button className="px-4 py-2 rounded-lg border border-border text-muted-foreground text-sm font-medium hover:border-primary hover:text-primary transition-colors">
+          <button
+            onClick={() => { logout(); navigate("/"); }}
+            className="px-4 py-2 rounded-lg border border-border text-muted-foreground text-sm font-medium hover:border-primary hover:text-primary transition-colors"
+          >
             Logout
           </button>
         </div>
@@ -57,7 +64,7 @@ const Dashboard = () => {
             <div>
               <p className="text-sm font-meme text-muted-foreground mb-1">Welcome back 👋</p>
               <h1 className="text-3xl md:text-4xl font-bold">
-                CheeseEnjoyer <span className="text-gradient-cheese">🧀</span>
+                {user?.name ?? "Cheese Enjoyer"} <span className="text-gradient-cheese">🧀</span>
               </h1>
               <p className="text-muted-foreground font-meme mt-2 text-sm">
                 Your websites are looking gouda. Here's what's happening today.
@@ -65,7 +72,7 @@ const Dashboard = () => {
             </div>
             <div className="text-right shrink-0">
               <p className="text-xs text-muted-foreground font-meme">Account since</p>
-              <p className="font-bold text-foreground">January 2025</p>
+              <p className="font-bold text-foreground">{user?.memberSince ?? "January 2025"}</p>
             </div>
           </div>
 
