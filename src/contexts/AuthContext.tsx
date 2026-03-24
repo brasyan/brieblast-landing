@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { User, Session } from "@supabase/supabase-js";
+
+const SUPABASE_NOT_CONFIGURED = "Authentication service is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.";
 
 interface AuthContextType {
   user: User | null;
@@ -21,6 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -41,11 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) return { error: SUPABASE_NOT_CONFIGURED };
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error?.message ?? null };
   };
 
   const signUp = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) return { error: SUPABASE_NOT_CONFIGURED };
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -61,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
+    if (!isSupabaseConfigured) return { error: SUPABASE_NOT_CONFIGURED };
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
@@ -68,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updatePassword = async (password: string) => {
+    if (!isSupabaseConfigured) return { error: SUPABASE_NOT_CONFIGURED };
     const { error } = await supabase.auth.updateUser({ password });
     return { error: error?.message ?? null };
   };
