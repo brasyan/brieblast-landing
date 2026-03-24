@@ -12,6 +12,9 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import ResponsibleDisclosurePage from "./pages/ResponsibleDisclosurePage";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +39,9 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/responsible-disclosure" element={<ResponsibleDisclosurePage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
