@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 const FooterSection = () => {
   return (
     <footer className="py-16 px-4 border-t border-border">
@@ -14,19 +16,19 @@ const FooterSection = () => {
           <div>
             <h4 className="font-bold text-foreground mb-3">Links</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="hover:text-primary cursor-pointer transition-colors">Features</li>
-              <li className="hover:text-primary cursor-pointer transition-colors">Pricing</li>
-              <li className="hover:text-primary cursor-pointer transition-colors">Status Page</li>
-              <li className="hover:text-primary cursor-pointer transition-colors">Blog (coming soon™)</li>
+              <li className="hover:text-primary transition-colors"><a href="/#features">Features</a></li>
+              <li className="hover:text-primary transition-colors"><a href="/#pricing">Pricing</a></li>
+              <li className="hover:text-primary transition-colors"><a href="#">Status Page</a></li>
+              <li className="hover:text-primary transition-colors"><a href="#">Blog (coming soon™)</a></li>
             </ul>
           </div>
           <div>
             <h4 className="font-bold text-foreground mb-3">Legal Stuff</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="hover:text-primary cursor-pointer transition-colors">Terms of Service</li>
-              <li className="hover:text-primary cursor-pointer transition-colors">Privacy Policy</li>
-              <li className="hover:text-primary cursor-pointer transition-colors">Cookie Policy 🍪</li>
-              <li className="hover:text-primary cursor-pointer transition-colors">GDPR (we got you)</li>
+              <li className="hover:text-primary transition-colors"><Link to="/terms">Terms of Service</Link></li>
+              <li className="hover:text-primary transition-colors"><Link to="/privacy">Privacy Policy</Link></li>
+              <li className="hover:text-primary transition-colors"><Link to="/privacy">GDPR (we got you)</Link></li>
+              <li className="hover:text-primary transition-colors"><Link to="/responsible-disclosure">Responsible Disclosure</Link></li>
             </ul>
           </div>
         </div>
