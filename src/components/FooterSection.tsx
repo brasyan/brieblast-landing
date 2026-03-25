@@ -14,20 +14,20 @@ const FooterSection = () => {
           <div>
             <h4 className="font-bold text-foreground mb-3">Links</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="hover:text-primary cursor-pointer transition-colors"><a href="#features">Features</a></li>
+              <li className="hover:text-primary cursor-pointer transition-colors"><a href="/#features">Features</a></li>
               <li className="hover:text-primary cursor-pointer transition-colors"><a href="/features">Full Features</a></li>
-              <li className="hover:text-primary cursor-pointer transition-colors"><a href="#pricing">Pricing</a></li>
+              <li className="hover:text-primary cursor-pointer transition-colors"><a href="/#pricing">Pricing</a></li>
               <li className="hover:text-primary cursor-pointer transition-colors"><a href="/status">Status Page</a></li>
-              <li className="hover:text-primary cursor-pointer transition-colors"><a href="#">Blog (coming soon™)</a></li>
+              <li className="hover:text-primary cursor-pointer transition-colors"><a href="/blog">Blog</a></li>
             </ul>
           </div>
           <div>
             <h4 className="font-bold text-foreground mb-3">Legal Stuff</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="hover:text-primary cursor-pointer transition-colors"><a href="#">Terms of Service</a></li>
-              <li className="hover:text-primary cursor-pointer transition-colors"><a href="#">Privacy Policy</a></li>
-              <li className="hover:text-primary cursor-pointer transition-colors"><a href="#">Cookie Policy 🍪</a></li>
-              <li className="hover:text-primary cursor-pointer transition-colors"><a href="#">GDPR (we got you)</a></li>
+              <li className="hover:text-primary cursor-pointer transition-colors"><a href="/legal#terms">Terms of Service</a></li>
+              <li className="hover:text-primary cursor-pointer transition-colors"><a href="/legal#privacy">Privacy Policy</a></li>
+              <li className="hover:text-primary cursor-pointer transition-colors"><a href="/legal#cookies">Cookie Policy 🍪</a></li>
+              <li className="hover:text-primary cursor-pointer transition-colors"><a href="/legal#gdpr">GDPR (we got you)</a></li>
             </ul>
           </div>
         </div>

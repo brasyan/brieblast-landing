@@ -32,8 +32,8 @@ const features = [
   },
   {
     icon: Server,
-    title: "99.9% Uptime",
-    description: "The 0.1% is when our intern trips over the server cable. We're working on it.",
+    title: "Brielliant Uptime",
+    description: "We guarantee uptime that's as consistent as our Belgian cheese.",
     meme: "🖥️",
     glowClass: "glow-cyan",
   },
@@ -46,7 +46,7 @@ const features = [
   },
   {
     icon: Clock,
-    title: "24/7 Support",
+    title: "Lightning Fast Response",
     description: "We answer faster than you can say 'have you tried turning it off and on again'.",
     meme: "🕐",
     glowClass: "glow-pink",
@@ -61,7 +61,7 @@ const features = [
   {
     icon: DatabaseBackup,
     title: "Auto Backups",
-    description: "Daily backups so you never lose your masterpiece. Even if your cat walks on the keyboard.",
+    description: "Regular backups so you never lose your masterpiece. Even if your cat walks on the keyboard.",
     meme: "💾",
     glowClass: "glow-cheese",
   },
