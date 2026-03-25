@@ -1,8 +1,11 @@
 import { Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const plans = [
   {
     name: "Smol Brie",
+    planId: "smol_brie",
     price: "€4.20",
     period: "/month",
     meme: "🧀",
@@ -20,6 +23,7 @@ const plans = [
   },
   {
     name: "Thicc Brie",
+    planId: "thicc_brie",
     price: "€13.37",
     period: "/month",
     meme: "🧀🧀🧀",
@@ -39,6 +43,7 @@ const plans = [
   },
   {
     name: "Mega Brie",
+    planId: "mega_brie",
     price: "€42.69",
     period: "/month",
     meme: "🧀👑🧀",
@@ -60,6 +65,17 @@ const plans = [
 ];
 
 const PricingSection = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleSelectPlan = (planId: string) => {
+    if (user) {
+      navigate("/dashboard");
+    } else {
+      navigate("/register");
+    }
+  };
+
   return (
     <section className="py-24 px-4" id="pricing">
       <div className="max-w-6xl mx-auto">
@@ -106,16 +122,16 @@ const PricingSection = () => {
                 ))}
               </ul>
 
-              <a
-                href="/dashboard"
-                className={`w-full py-3 rounded-lg font-bold text-lg transition-all hover:scale-105 text-center block ${
+              <button
+                onClick={() => handleSelectPlan(plan.planId)}
+                className={`w-full py-3 rounded-lg font-bold text-lg transition-all hover:scale-105 ${
                   plan.popular
                     ? "bg-primary text-primary-foreground glow-cheese"
                     : "border border-border text-foreground hover:border-primary hover:text-primary"
                 }`}
               >
                 {plan.cta}
-              </a>
+              </button>
             </div>
           ))}
         </div>
