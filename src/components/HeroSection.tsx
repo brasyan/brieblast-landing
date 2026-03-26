@@ -46,7 +46,7 @@ const HeroSection = () => {
       </div>
 
       {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce text-muted-foreground">
+      <div className="absolute bottom-8 left-0 w-full animate-bounce text-center text-muted-foreground">
         ↓ scroll if you dare ↓
       </div>
     </section>
