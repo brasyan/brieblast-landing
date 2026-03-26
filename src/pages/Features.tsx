@@ -83,7 +83,7 @@ const features = [
 
 const comparison = [
   { feature: "Starting Price", us: "€4.99/mo", them: "€12.99/mo + 'setup fee'" },
-  { feature: "Uptime SLA", us: "99.9%", them: "99% (on a good day)" },
+  { feature: "Uptime SLA", us: "Brielliant", them: "Promising numbers" },
   { feature: "Support Speed", us: "< 5 minutes", them: "3–5 business days 🙃" },
   { feature: "Free SSL", us: "✅ Always", them: "💸 Extra charge" },
   { feature: "Free Backups", us: "✅ Daily", them: "💸 Premium add-on" },
