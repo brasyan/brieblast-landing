@@ -128,3 +128,93 @@
 .animate-marquee {
   animation: marquee 20s linear infinite;
 }
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-10deg) scale(1); }
+  25% { transform: rotate(10deg) scale(1.1); }
+  50% { transform: rotate(-6deg) scale(1.05); }
+  75% { transform: rotate(8deg) scale(1.08); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px) rotate(-2deg); }
+  30% { transform: translateX(6px) rotate(2deg); }
+  45% { transform: translateX(-4px) rotate(-1deg); }
+  60% { transform: translateX(4px) rotate(1deg); }
+  75% { transform: translateX(-2px); }
+  90% { transform: translateX(2px); }
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  8% { opacity: 0.8; }
+  9% { opacity: 1; }
+  42% { opacity: 1; }
+  43% { opacity: 0.6; }
+  44% { opacity: 1; }
+  75% { opacity: 1; }
+  76% { opacity: 0.85; }
+  77% { opacity: 1; }
+}
+
+@keyframes drop-in {
+  0% { transform: translateY(-120px) scale(0.5) rotate(-10deg); opacity: 0; }
+  60% { transform: translateY(10px) scale(1.05) rotate(2deg); opacity: 1; }
+  80% { transform: translateY(-5px) scale(0.98) rotate(-1deg); }
+  100% { transform: translateY(0) scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(140px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(140px) rotate(-360deg); }
+}
+
+@keyframes orbit-reverse {
+  from { transform: rotate(0deg) translateX(200px) rotate(0deg); }
+  to   { transform: rotate(-360deg) translateX(200px) rotate(360deg); }
+}
+
+@keyframes glitch {
+  0%, 100% { text-shadow: 2px 0 hsl(var(--neon-pink)), -2px 0 hsl(var(--neon-cyan)); }
+  25% { text-shadow: -3px 0 hsl(var(--neon-pink)), 3px 0 hsl(var(--neon-cyan)); transform: skewX(-2deg); }
+  50% { text-shadow: 3px 0 hsl(var(--neon-pink)), -3px 0 hsl(var(--neon-cyan)); }
+  75% { text-shadow: -2px 0 hsl(var(--neon-pink)), 2px 0 hsl(var(--neon-cyan)); transform: skewX(2deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+.animate-wiggle {
+  animation: wiggle 1.4s ease-in-out infinite;
+}
+
+.animate-shake {
+  animation: shake 0.6s ease-in-out infinite;
+}
+
+.animate-flicker {
+  animation: flicker 4s ease-in-out infinite;
+}
+
+.animate-drop-in {
+  animation: drop-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-orbit {
+  animation: orbit 7s linear infinite;
+}
+
+.animate-orbit-reverse {
+  animation: orbit-reverse 11s linear infinite;
+}
+
+.animate-glitch {
+  animation: glitch 2.5s ease-in-out infinite;
+}
