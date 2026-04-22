@@ -36,6 +36,17 @@ export const resetPasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+export const MAX_SITE_UPLOAD_BYTES = 100 * 1024 * 1024;
+
+export const siteUploadSchema = z.object({
+  file: z
+    .instanceof(File, { message: "Please choose a .zip file" })
+    .refine((f) => f.name.toLowerCase().endsWith(".zip"), "Must be a .zip file")
+    .refine((f) => f.size <= MAX_SITE_UPLOAD_BYTES, "Max 100 MB"),
+});
+
+export type SiteUploadFormData = z.infer<typeof siteUploadSchema>;
+
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type RegisterFormData = z.infer<typeof registerSchema>;
 export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
