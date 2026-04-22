@@ -25,6 +25,12 @@ const NavBar = () => {
         {user ? (
           <div className="flex items-center gap-3">
             <Link
+              to="/account-settings"
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+            >
+              Settings
+            </Link>
+            <Link
               to="/dashboard"
               className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-105 transition-transform"
             >

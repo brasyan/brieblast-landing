@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useProfile } from "@/hooks/useProfile";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { Check } from "lucide-react";
@@ -37,6 +37,12 @@ export default function DashboardPage() {
             <span className="text-sm text-muted-foreground hidden sm:block">
               {user?.email}
             </span>
+            <Link
+              to="/account-settings"
+              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+            >
+              Account settings
+            </Link>
             <button
               onClick={handleSignOut}
               className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
