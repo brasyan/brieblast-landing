@@ -45,6 +45,17 @@ The app runs on the local Vite dev server and supports hot reload.
 - `src/lib`: Utility functions.
 - `public`: Static assets.
 
+## Environment variables
+
+Create a `.env` (not committed) with:
+
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+# URL of the briehost-api service (sibling repo) — required for the dashboard's site upload feature.
+VITE_BRIEHOST_API_URL=http://localhost:8000
+```
+
 ## Deployment
 
 Build the project with `npm run build` and deploy the generated `dist/` directory to your hosting provider.
