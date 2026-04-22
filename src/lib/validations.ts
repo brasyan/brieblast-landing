@@ -53,12 +53,17 @@ export const changePasswordSchema = resetPasswordSchema;
 const MAX_SITE_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024;
 
 export const siteUploadSchema = z.object({
+  // Native <input type="file"> registered with react-hook-form yields a FileList,
+  // not a File. Validate the FileList directly and read [0] in the submit handler.
   file: z
-    .instanceof(File, { message: "Please select a .zip file" })
-    .refine((file) => file.name.toLowerCase().endsWith(".zip"), {
+    .custom<FileList>(
+      (v) => typeof FileList !== "undefined" && v instanceof FileList && v.length > 0,
+      { message: "Please select a .zip file" },
+    )
+    .refine((files) => files[0].name.toLowerCase().endsWith(".zip"), {
       message: "Only .zip files are supported",
     })
-    .refine((file) => file.size <= MAX_SITE_UPLOAD_SIZE_BYTES, {
+    .refine((files) => files[0].size <= MAX_SITE_UPLOAD_SIZE_BYTES, {
       message: "File must be 100 MB or smaller",
     }),
 });

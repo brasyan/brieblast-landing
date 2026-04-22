@@ -56,7 +56,7 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
     setUploading(true);
     setProgress(0);
     try {
-      await uploadSite(data.file, (f) => setProgress(Math.round(f * 100)));
+      await uploadSite(data.file[0], (f) => setProgress(Math.round(f * 100)));
       toast.success("Site uploaded — provisioning will begin shortly.");
       onUploaded();
       resetAndClose();
@@ -67,11 +67,7 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
     }
   };
 
-  // RHF + native file inputs: register("file") gives a FileList; we need the first File.
-  const fileReg = register("file", {
-    setValueAs: (v: FileList | File | null) =>
-      v instanceof FileList ? v[0] : v,
-  });
+  const fileReg = register("file");
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o || uploading ? onOpenChange(true) : close())}>
