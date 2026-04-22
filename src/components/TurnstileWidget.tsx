@@ -2,8 +2,31 @@ import { useEffect, useRef, useState } from "react";
 
 const TURNSTILE_SCRIPT_ID = "cf-turnstile-script";
 const TURNSTILE_SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+const TURNSTILE_READY_TIMEOUT_MS = 5000;
 
 let turnstileScriptPromise: Promise<void> | null = null;
+
+function waitForTurnstile() {
+  return new Promise<void>((resolve, reject) => {
+    const startedAt = Date.now();
+
+    const check = () => {
+      if (window.turnstile) {
+        resolve();
+        return;
+      }
+
+      if (Date.now() - startedAt >= TURNSTILE_READY_TIMEOUT_MS) {
+        reject(new Error("Turnstile did not become ready in time"));
+        return;
+      }
+
+      window.setTimeout(check, 50);
+    };
+
+    check();
+  });
+}
 
 function loadTurnstileScript() {
   if (typeof window === "undefined") {
@@ -17,10 +40,27 @@ function loadTurnstileScript() {
   if (!turnstileScriptPromise) {
     turnstileScriptPromise = new Promise((resolve, reject) => {
       const existingScript = document.getElementById(TURNSTILE_SCRIPT_ID) as HTMLScriptElement | null;
+      const handleLoaded = () => {
+        waitForTurnstile()
+          .then(resolve)
+          .catch((error) => {
+            turnstileScriptPromise = null;
+            reject(error);
+          });
+      };
+      const handleError = () => {
+        turnstileScriptPromise = null;
+        reject(new Error("Failed to load Turnstile script"));
+      };
 
       if (existingScript) {
-        existingScript.addEventListener("load", () => resolve(), { once: true });
-        existingScript.addEventListener("error", () => reject(new Error("Failed to load Turnstile script")), { once: true });
+        if (window.turnstile || existingScript.dataset.loaded === "true") {
+          handleLoaded();
+          return;
+        }
+
+        existingScript.addEventListener("load", handleLoaded, { once: true });
+        existingScript.addEventListener("error", handleError, { once: true });
         return;
       }
 
@@ -29,8 +69,11 @@ function loadTurnstileScript() {
       script.src = TURNSTILE_SCRIPT_SRC;
       script.async = true;
       script.defer = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load Turnstile script"));
+      script.onload = () => {
+        script.dataset.loaded = "true";
+        handleLoaded();
+      };
+      script.onerror = handleError;
       document.head.appendChild(script);
     });
   }
@@ -50,6 +93,8 @@ export default function TurnstileWidget({ siteKey, onTokenChange }: TurnstileWid
 
   useEffect(() => {
     let isActive = true;
+    setLoadError(null);
+    onTokenChange(null);
 
     const renderTurnstile = async () => {
       try {
@@ -59,6 +104,7 @@ export default function TurnstileWidget({ siteKey, onTokenChange }: TurnstileWid
           return;
         }
 
+        containerRef.current.innerHTML = "";
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey: siteKey,
           callback: (token: string) => {
@@ -74,7 +120,7 @@ export default function TurnstileWidget({ siteKey, onTokenChange }: TurnstileWid
         });
       } catch {
         if (isActive) {
-          setLoadError("Could not load security check. Please refresh and try again.");
+          setLoadError("Could not load security check. Please disable blockers or refresh and try again.");
           onTokenChange(null);
         }
       }
