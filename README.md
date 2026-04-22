@@ -54,6 +54,11 @@ VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 # URL of the briehost-api service (sibling repo) — required for the dashboard's site upload feature.
 VITE_BRIEHOST_API_URL=http://localhost:8000
+# Compatibility aliases (optional):
+# VITE_BRIEHOST_URL=http://localhost:8000
+# VITE_BRIEHOST_BASE_URL=http://localhost:8000
+# If your briehost-api requires an API key header:
+# VITE_BRIEHOST_API_KEY=...
 ```
 
 ## Deployment

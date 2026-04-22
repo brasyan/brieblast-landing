@@ -52,6 +52,9 @@ export default function DashboardPage() {
               <p className="text-sm text-destructive/90">
                 Something went wrong while fetching your sites. Please try again.
               </p>
+              <p className="text-xs text-destructive/80 mt-1 break-words">
+                {sitesError}
+              </p>
             </div>
             <button
               type="button"

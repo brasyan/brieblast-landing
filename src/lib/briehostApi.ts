@@ -1,9 +1,18 @@
 import { supabase } from "@/lib/supabase";
 
-const BASE_URL = import.meta.env.VITE_BRIEHOST_API_URL;
+const BASE_URL =
+  import.meta.env.VITE_BRIEHOST_API_URL ||
+  import.meta.env.VITE_BRIEHOST_URL ||
+  import.meta.env.VITE_BRIEHOST_BASE_URL;
+
+const API_KEY =
+  import.meta.env.VITE_BRIEHOST_API_KEY ||
+  import.meta.env.VITE_API_KEY;
 
 if (!BASE_URL) {
-  console.warn("Missing VITE_BRIEHOST_API_URL. Site uploads will fail until it is set.");
+  console.warn(
+    "Missing Briehost API URL. Set one of: VITE_BRIEHOST_API_URL, VITE_BRIEHOST_URL, or VITE_BRIEHOST_BASE_URL.",
+  );
 }
 
 export interface UploadResult {
@@ -38,6 +47,9 @@ export async function uploadSite(
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${BASE_URL}/api/sites/upload`);
     xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    if (API_KEY) {
+      xhr.setRequestHeader("x-api-key", API_KEY);
+    }
 
     xhr.upload.onprogress = (e) => {
       if (onProgress && e.lengthComputable) onProgress(e.loaded / e.total);
