@@ -38,12 +38,17 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
     resolver: zodResolver(siteUploadSchema),
   });
 
-  const close = () => {
+  const resetAndClose = () => {
     reset();
     setProgress(0);
     setServerError(null);
     setUploading(false);
     onOpenChange(false);
+  };
+
+  const close = () => {
+    if (uploading) return;
+    resetAndClose();
   };
 
   const onSubmit = async (data: SiteUploadFormData) => {
@@ -54,7 +59,7 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
       await uploadSite(data.file, (f) => setProgress(Math.round(f * 100)));
       toast.success("Site uploaded — provisioning will begin shortly.");
       onUploaded();
-      close();
+      resetAndClose();
     } catch (e) {
       const msg = e instanceof BriehostApiError ? e.message : "Upload failed";
       setServerError(msg);
@@ -69,8 +74,16 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
   });
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={(o) => (o || uploading ? onOpenChange(true) : close())}>
+      <DialogContent
+        className="sm:max-w-md"
+        onEscapeKeyDown={(event) => {
+          if (uploading) event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          if (uploading) event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Upload a site</DialogTitle>
           <DialogDescription>

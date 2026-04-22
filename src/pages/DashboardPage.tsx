@@ -24,7 +24,7 @@ const STATUS_LABEL: Record<SiteStatus, string> = {
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading, updatePlan } = useProfile();
-  const { sites, loading: sitesLoading, refetch: refetchSites } = useSites();
+  const { sites, loading: sitesLoading, error: sitesError, refetch: refetchSites } = useSites();
   const navigate = useNavigate();
   const [changingPlan, setChangingPlan] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -41,6 +41,30 @@ export default function DashboardPage() {
   };
 
   const currentPlan = profile?.plan && profile.plan !== "none" ? PLANS[profile.plan as Exclude<PlanId, "none">] : null;
+
+  if (sitesError) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold">Unable to load your sites</h2>
+              <p className="text-sm text-destructive/90">
+                Something went wrong while fetching your sites. Please try again.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refetchSites()}
+              className="inline-flex items-center justify-center rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors hover:bg-destructive/90"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
