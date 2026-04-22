@@ -84,7 +84,16 @@ export default function TurnstileWidget({
 }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const onVerifyRef = useRef(onVerify);
+  const onExpireRef = useRef(onExpire);
+  const onErrorRef = useRef(onError);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    onVerifyRef.current = onVerify;
+    onExpireRef.current = onExpire;
+    onErrorRef.current = onError;
+  }, [onVerify, onExpire, onError]);
 
   useEffect(() => {
     let mounted = true;
@@ -105,13 +114,13 @@ export default function TurnstileWidget({
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey: siteKey,
           callback: (token) => {
-            onVerify(token);
+            onVerifyRef.current(token);
           },
           "expired-callback": () => {
-            onExpire();
+            onExpireRef.current();
           },
           "error-callback": () => {
-            onError("Security check failed. Please try again.");
+            onErrorRef.current("Security check failed. Please try again.");
           },
           theme,
           size,
@@ -121,7 +130,7 @@ export default function TurnstileWidget({
       } catch {
         if (mounted) {
           setIsLoading(false);
-          onError("Unable to load security check. Please refresh and try again.");
+          onErrorRef.current("Unable to load security check. Please refresh and try again.");
         }
       }
     };
@@ -135,7 +144,7 @@ export default function TurnstileWidget({
         widgetIdRef.current = null;
       }
     };
-  }, [siteKey, onVerify, onExpire, onError, theme, size]);
+  }, [siteKey, theme, size]);
 
   if (!siteKey) {
     return (
@@ -148,7 +157,7 @@ export default function TurnstileWidget({
   return (
     <div className={className}>
       {isLoading && <p className="text-xs text-muted-foreground mb-2">Loading security check...</p>}
-      <div ref={containerRef} />
+      <div ref={containerRef} style={{ minHeight: 65 }} />
     </div>
   );
 }
