@@ -8,8 +8,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, captchaToken?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (password: string) => Promise<{ error: string | null }>;
@@ -47,19 +47,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, captchaToken?: string) => {
     if (!isSupabaseConfigured) return { error: SUPABASE_NOT_CONFIGURED };
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      ...(captchaToken ? { options: { captchaToken } } : {}),
+    });
     return { error: error?.message ?? null };
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, captchaToken?: string) => {
     if (!isSupabaseConfigured) return { error: SUPABASE_NOT_CONFIGURED };
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/login`,
+        ...(captchaToken ? { captchaToken } : {}),
       },
     });
     return { error: error?.message ?? null };
