@@ -6,6 +6,14 @@ const TURNSTILE_READY_TIMEOUT_MS = 5000;
 
 let turnstileScriptPromise: Promise<void> | null = null;
 
+function formatTurnstileError(errorCode?: string | number) {
+  if (errorCode === undefined || errorCode === null || errorCode === "") {
+    return "Security check failed to load. Please refresh and try again.";
+  }
+
+  return `Security check failed to load (Turnstile error ${errorCode}). This usually means a hostname/site-key mismatch or a blocked Cloudflare script.`;
+}
+
 function waitForTurnstile() {
   return new Promise<void>((resolve, reject) => {
     const startedAt = Date.now();
@@ -108,15 +116,27 @@ export default function TurnstileWidget({ siteKey, onTokenChange }: TurnstileWid
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey: siteKey,
           callback: (token: string) => {
+            setLoadError(null);
             onTokenChange(token);
           },
           "expired-callback": () => {
             onTokenChange(null);
           },
-          "error-callback": () => {
+          "error-callback": (errorCode?: string | number) => {
+            setLoadError(formatTurnstileError(errorCode));
             onTokenChange(null);
+            return true;
+          },
+          "timeout-callback": () => {
+            setLoadError("Security check timed out. Please try again.");
+            onTokenChange(null);
+            if (widgetIdRef.current && window.turnstile) {
+              window.turnstile.reset(widgetIdRef.current);
+            }
           },
           theme: "auto",
+          size: "normal",
+          appearance: "always",
         });
       } catch {
         if (isActive) {
