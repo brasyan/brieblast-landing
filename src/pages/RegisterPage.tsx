@@ -4,12 +4,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { registerSchema, type RegisterFormData } from "@/lib/validations";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 export default function RegisterPage() {
   const { signUp, user, loading } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 
   const {
     register,
@@ -33,13 +37,29 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: RegisterFormData) => {
     setServerError(null);
+
+    if (!turnstileSiteKey) {
+      setServerError("Security check is not configured. Please contact support.");
+      return;
+    }
+
+    if (!turnstileToken) {
+      setServerError("Please complete the security check.");
+      return;
+    }
+
     setIsSubmitting(true);
-    const { error } = await signUp(data.email, data.password);
+    const { error } = await signUp(data.email, data.password, turnstileToken);
+
+    setTurnstileToken(null);
+    setTurnstileKey((value) => value + 1);
+
     if (error) {
       setServerError(error);
     } else {
       setEmailSent(true);
     }
+
     setIsSubmitting(false);
   };
 
@@ -156,9 +176,19 @@ export default function RegisterPage() {
               <li>• One special character</li>
             </ul>
 
+            {turnstileSiteKey ? (
+              <TurnstileWidget
+                key={turnstileKey}
+                siteKey={turnstileSiteKey}
+                onTokenChange={setTurnstileToken}
+              />
+            ) : (
+              <p className="text-destructive text-xs">Missing Turnstile site key configuration.</p>
+            )}
+
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !turnstileToken || !turnstileSiteKey}
               className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100"
             >
               {isSubmitting ? "Creating account..." : "Create Account 🧀"}
