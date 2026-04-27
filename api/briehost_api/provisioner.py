@@ -143,10 +143,102 @@ def _create_tarball(source_dir: str, dest_path: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Core provisioning pipeline
+# Provisioning step helpers
 # --------------------------------------------------------------------------- #
 
-async def provision_site(site_id: str) -> None:  # noqa: C901 – intentionally long
+async def _bootstrap_container(vmid: int) -> None:
+    """Install nginx + PHP-FPM inside the container via pct exec."""
+    bootstrap_script = (
+        "DEBIAN_FRONTEND=noninteractive apt-get update -qq && "
+        "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "
+        "nginx php8.2-fpm php8.2-cli php8.2-mysql php8.2-curl "
+        "php8.2-gd php8.2-mbstring php8.2-xml php8.2-zip && "
+        "systemctl enable nginx php8.2-fpm && "
+        "systemctl start nginx php8.2-fpm"
+    )
+    await ssh.run_on_proxmox_checked(
+        f"pct exec {vmid} -- bash -c {shlex.quote(bootstrap_script)}",
+        label="bootstrap",
+    )
+
+
+async def _deploy_files(vmid: int, web_root: str, site_id: str, tmpdir: str) -> None:
+    """
+    Tar the web root, push it to the Proxmox host, copy into the container,
+    and extract it to /var/www/html with correct ownership.
+    """
+    tar_path = os.path.join(tmpdir, "webroot.tar.gz")
+    await asyncio.to_thread(_create_tarball, web_root, tar_path)
+
+    remote_tar_on_host = f"/tmp/briehost-{site_id[:8]}.tar.gz"
+    await ssh.push_file_to_proxmox(tar_path, remote_tar_on_host)
+    try:
+        await ssh.run_on_proxmox_checked(
+            f"pct push {vmid} {remote_tar_on_host} /tmp/site.tar.gz",
+            label="pct push",
+        )
+    finally:
+        await ssh.run_on_proxmox(f"rm -f {remote_tar_on_host}")
+
+    deploy_script = (
+        "rm -rf /var/www/html/* && "
+        "tar -xzf /tmp/site.tar.gz -C /var/www/html && "
+        "rm /tmp/site.tar.gz && "
+        "chown -R www-data:www-data /var/www/html && "
+        r"find /var/www/html -type f -exec chmod 644 {} \; && "
+        r"find /var/www/html -type d -exec chmod 755 {} \;"
+    )
+    await ssh.run_on_proxmox_checked(
+        f"pct exec {vmid} -- bash -c {shlex.quote(deploy_script)}",
+        label="deploy files",
+    )
+
+
+async def _configure_container_nginx(vmid: int, site_id: str, tmpdir: str) -> None:
+    """Write the PHP-FPM nginx vhost into the container."""
+    nginx_conf_local = os.path.join(tmpdir, "nginx_default.conf")
+    with open(nginx_conf_local, "w") as fh:
+        fh.write(_CONTAINER_NGINX_CONF)
+
+    remote_conf_on_host = f"/tmp/briehost-nginx-{site_id[:8]}.conf"
+    await ssh.push_file_to_proxmox(nginx_conf_local, remote_conf_on_host)
+    try:
+        await ssh.run_on_proxmox_checked(
+            f"pct push {vmid} {remote_conf_on_host} "
+            f"/etc/nginx/sites-enabled/default",
+            label="push nginx conf",
+        )
+    finally:
+        await ssh.run_on_proxmox(f"rm -f {remote_conf_on_host}")
+
+    await ssh.run_on_proxmox_checked(
+        f'pct exec {vmid} -- bash -c "nginx -t && systemctl reload nginx"',
+        label="reload nginx in container",
+    )
+
+
+async def _configure_proxy(subdomain: str, container_ip: str, tmpdir: str) -> str:
+    """
+    Drop a per-site nginx vhost on the reverse-proxy host and reload nginx.
+    Returns the public site URL.
+    """
+    proxy_conf_local = os.path.join(tmpdir, "proxy.conf")
+    with open(proxy_conf_local, "w") as fh:
+        fh.write(_proxy_nginx_conf(subdomain, container_ip))
+
+    remote_proxy_conf = f"{settings.NGINX_SITES_DIR}/{subdomain.split('.')[0]}.conf"
+    await ssh.push_file_to_proxy(proxy_conf_local, remote_proxy_conf)
+    await ssh.run_on_proxy_checked(
+        "nginx -t && systemctl reload nginx",
+        label="reload proxy nginx",
+    )
+
+    protocol = "https" if settings.WILDCARD_CERT_FULLCHAIN else "http"
+    return f"{protocol}://{subdomain}"
+
+
+
+async def provision_site(site_id: str) -> None:
     """
     Orchestrate full LXC provisioning for *site_id*.
 
@@ -157,9 +249,7 @@ async def provision_site(site_id: str) -> None:  # noqa: C901 – intentionally 
     vmid: Optional[int] = None
 
     try:
-        # ------------------------------------------------------------------ #
         # 1. Fetch site + user plan
-        # ------------------------------------------------------------------ #
         site = await db.get_site(site_id)
         if not site:
             log.error("Site %s not found in DB – skipping", site_id)
@@ -169,23 +259,16 @@ async def provision_site(site_id: str) -> None:  # noqa: C901 – intentionally 
         resources = resources_for_plan(plan)
         log.info("Site %s plan=%s resources=%s", site_id, plan, resources)
 
-        # ------------------------------------------------------------------ #
         # 2. Mark provisioning
-        # ------------------------------------------------------------------ #
         await db.update_site_status(site_id, "provisioning")
 
-        # ------------------------------------------------------------------ #
         # 3. Load & validate zip
-        # ------------------------------------------------------------------ #
         zip_file_path = storage.zip_path(site_id)
         if not os.path.exists(zip_file_path):
             raise RuntimeError(f"Uploaded zip not found at {zip_file_path}")
-
         await asyncio.to_thread(validate_zip, zip_file_path)
 
-        # ------------------------------------------------------------------ #
         # 4. Extract to temp dir
-        # ------------------------------------------------------------------ #
         with tempfile.TemporaryDirectory(prefix="briehost-") as tmpdir:
             web_root = os.path.join(tmpdir, "webroot")
             os.makedirs(web_root)
@@ -199,9 +282,7 @@ async def provision_site(site_id: str) -> None:  # noqa: C901 – intentionally 
                     web_root = candidate
                     log.debug("Unwrapped single top-level dir: %s", entries[0])
 
-            # ---------------------------------------------------------------- #
             # 5. Create LXC container
-            # ---------------------------------------------------------------- #
             vmid = await proxmox.next_vmid()
             hostname = f"site-{site_id[:8]}"
             log.info("Creating LXC vmid=%s hostname=%s", vmid, hostname)
@@ -211,12 +292,10 @@ async def provision_site(site_id: str) -> None:  # noqa: C901 – intentionally 
             if exit_status != "OK":
                 raise RuntimeError(f"LXC creation task failed: {exit_status!r}")
 
-            # Persist VMID immediately so cleanup can remove the container on error
+            # Persist VMID now so cleanup can remove the container on error
             await db.update_site_vmid(site_id, vmid)
 
-            # ---------------------------------------------------------------- #
             # 6. Start container
-            # ---------------------------------------------------------------- #
             log.info("Starting LXC vmid=%s", vmid)
             start_upid = await proxmox.start_lxc(vmid)
             exit_status = await proxmox.wait_for_task(start_upid, timeout=120)
@@ -226,110 +305,25 @@ async def provision_site(site_id: str) -> None:  # noqa: C901 – intentionally 
             # Give the container a moment to initialise networking
             await asyncio.sleep(8)
 
-            # ---------------------------------------------------------------- #
             # 7. Bootstrap: install nginx + php-fpm
-            # ---------------------------------------------------------------- #
             log.info("Bootstrapping vmid=%s (installing nginx + php-fpm)", vmid)
-            bootstrap_script = (
-                "DEBIAN_FRONTEND=noninteractive apt-get update -qq && "
-                "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "
-                "nginx php8.2-fpm php8.2-cli php8.2-mysql php8.2-curl "
-                "php8.2-gd php8.2-mbstring php8.2-xml php8.2-zip && "
-                "systemctl enable nginx php8.2-fpm && "
-                "systemctl start nginx php8.2-fpm"
-            )
-            await ssh.run_on_proxmox_checked(
-                f"pct exec {vmid} -- bash -c {shlex.quote(bootstrap_script)}",
-                label="bootstrap",
-            )
+            await _bootstrap_container(vmid)
 
-            # ---------------------------------------------------------------- #
             # 8. Deploy site files
-            # ---------------------------------------------------------------- #
             log.info("Deploying files to vmid=%s", vmid)
-            tar_path = os.path.join(tmpdir, "webroot.tar.gz")
-            await asyncio.to_thread(_create_tarball, web_root, tar_path)
+            await _deploy_files(vmid, web_root, site_id, tmpdir)
 
-            # Push tar to Proxmox host first, then into the container
-            remote_tar_on_host = f"/tmp/briehost-{site_id[:8]}.tar.gz"
-            await ssh.push_file_to_proxmox(tar_path, remote_tar_on_host)
-
-            await ssh.run_on_proxmox_checked(
-                f"pct push {vmid} {remote_tar_on_host} /tmp/site.tar.gz",
-                label="pct push",
-            )
-            # Clean up the temp tar on the Proxmox host
-            await ssh.run_on_proxmox(f"rm -f {remote_tar_on_host}")
-
-            deploy_script = (
-                "rm -rf /var/www/html/* && "
-                "tar -xzf /tmp/site.tar.gz -C /var/www/html && "
-                "rm /tmp/site.tar.gz && "
-                "chown -R www-data:www-data /var/www/html && "
-                r"find /var/www/html -type f -exec chmod 644 {} \; && "
-                r"find /var/www/html -type d -exec chmod 755 {} \;"
-            )
-            await ssh.run_on_proxmox_checked(
-                f"pct exec {vmid} -- bash -c {shlex.quote(deploy_script)}",
-                label="deploy files",
-            )
-
-            # ---------------------------------------------------------------- #
             # 9. Configure nginx inside the container
-            # ---------------------------------------------------------------- #
             log.info("Configuring nginx inside vmid=%s", vmid)
-            nginx_conf_local = os.path.join(tmpdir, "nginx_default.conf")
-            with open(nginx_conf_local, "w") as fh:
-                fh.write(_CONTAINER_NGINX_CONF)
+            await _configure_container_nginx(vmid, site_id, tmpdir)
 
-            remote_conf_on_host = f"/tmp/briehost-nginx-{site_id[:8]}.conf"
-            await ssh.push_file_to_proxmox(nginx_conf_local, remote_conf_on_host)
-
-            await ssh.run_on_proxmox_checked(
-                f"pct push {vmid} {remote_conf_on_host} "
-                f"/etc/nginx/sites-enabled/default",
-                label="push nginx conf",
-            )
-            await ssh.run_on_proxmox(f"rm -f {remote_conf_on_host}")
-
-            await ssh.run_on_proxmox_checked(
-                f"pct exec {vmid} -- bash -c "
-                f'"nginx -t && systemctl reload nginx"',
-                label="reload nginx in container",
-            )
-
-            # ---------------------------------------------------------------- #
-            # 10. Configure reverse proxy on the proxy host
-            # ---------------------------------------------------------------- #
+            # 10. Configure reverse proxy + mark live
             short_id = site_id.replace("-", "")[:12]
             subdomain = f"{short_id}.{settings.BASE_DOMAIN}"
             container_ip = vmid_to_ip(vmid)
-            log.info(
-                "Configuring reverse proxy for %s → %s", subdomain, container_ip
-            )
+            log.info("Configuring reverse proxy: %s → %s", subdomain, container_ip)
 
-            proxy_conf_local = os.path.join(tmpdir, "proxy.conf")
-            with open(proxy_conf_local, "w") as fh:
-                fh.write(_proxy_nginx_conf(subdomain, container_ip))
-
-            remote_proxy_conf = (
-                f"{settings.NGINX_SITES_DIR}/{short_id}.conf"
-            )
-            await ssh.push_file_to_proxy(proxy_conf_local, remote_proxy_conf)
-            await ssh.run_on_proxy_checked(
-                "nginx -t && systemctl reload nginx",
-                label="reload proxy nginx",
-            )
-
-            # ---------------------------------------------------------------- #
-            # 11. Mark site live
-            # ---------------------------------------------------------------- #
-            protocol = (
-                "https"
-                if settings.WILDCARD_CERT_FULLCHAIN
-                else "http"
-            )
-            site_url = f"{protocol}://{subdomain}"
+            site_url = await _configure_proxy(subdomain, container_ip, tmpdir)
             await db.update_site_live(site_id, site_url)
             log.info("Site %s is LIVE at %s", site_id, site_url)
 

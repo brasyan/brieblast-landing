@@ -96,8 +96,13 @@ def extract_zip_safe(zip_path: str, dest_dir: str) -> None:
                 continue
 
             dest_path = os.path.realpath(os.path.join(dest_dir, name))
-            if not dest_path.startswith(real_dest + os.sep):
-                # Should not happen after validate_zip, but be safe
+            # Use commonpath for a cross-platform containment check (avoids
+            # double-separator edge-cases and mixed drive letters on Windows)
+            try:
+                if os.path.commonpath([real_dest, dest_path]) != real_dest:
+                    continue
+            except ValueError:
+                # commonpath raises ValueError for paths on different drives
                 continue
 
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)

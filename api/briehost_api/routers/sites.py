@@ -6,6 +6,7 @@ DELETE /api/sites/{site_id}  – Stop & destroy a site's container and remove it
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Annotated
@@ -121,7 +122,6 @@ async def upload_site(
     # ------------------------------------------------------------------ #
     zip_path = storage.zip_path(site_id)
     try:
-        import asyncio
         await asyncio.to_thread(validate_zip, zip_path)
     except ZipValidationError as exc:
         await db.update_site_failed(site_id, str(exc))
