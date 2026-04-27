@@ -9,8 +9,6 @@ export interface PlanDetails {
   description: string;
   features: string[];
   popular: boolean;
-  /** Maximum number of sites allowed. null = unlimited. */
-  maxSites: number | null;
 }
 
 export const PLANS: Record<Exclude<PlanId, "none">, PlanDetails> = {
@@ -29,7 +27,6 @@ export const PLANS: Record<Exclude<PlanId, "none">, PlanDetails> = {
       "1 Database",
     ],
     popular: false,
-    maxSites: 1,
   },
   thicc_brie: {
     id: "thicc_brie",
@@ -48,7 +45,6 @@ export const PLANS: Record<Exclude<PlanId, "none">, PlanDetails> = {
       "Auto Backups",
     ],
     popular: true,
-    maxSites: null,
   },
   mega_brie: {
     id: "mega_brie",
@@ -68,6 +64,5 @@ export const PLANS: Record<Exclude<PlanId, "none">, PlanDetails> = {
       "Free Migration",
     ],
     popular: false,
-    maxSites: null,
   },
 };

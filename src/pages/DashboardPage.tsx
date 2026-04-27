@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useProfile } from "@/hooks/useProfile";
 import { useSites, type SiteStatus } from "@/hooks/useSites";
 import { PLANS, type PlanId } from "@/lib/plans";
-import { Check, ExternalLink, Upload } from "lucide-react";
+import { Check, Upload } from "lucide-react";
 import { useState } from "react";
 import SiteUploadDialog from "@/components/SiteUploadDialog";
 
@@ -41,18 +41,6 @@ export default function DashboardPage() {
   };
 
   const currentPlan = profile?.plan && profile.plan !== "none" ? PLANS[profile.plan as Exclude<PlanId, "none">] : null;
-
-  const atSiteLimit =
-    currentPlan !== null &&
-    currentPlan.maxSites !== null &&
-    sites.length >= currentPlan.maxSites;
-
-  const uploadDisabled = !currentPlan || atSiteLimit;
-  const uploadTitle = !currentPlan
-    ? "Pick a plan first"
-    : atSiteLimit
-      ? `Your ${currentPlan.name} plan allows ${currentPlan.maxSites} site${currentPlan.maxSites === 1 ? "" : "s"}. Upgrade to add more.`
-      : undefined;
 
   if (sitesError) {
     return (
@@ -221,8 +209,8 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold text-foreground">Your Sites</h2>
             <button
               onClick={() => setUploadOpen(true)}
-              disabled={uploadDisabled}
-              title={uploadTitle}
+              disabled={!currentPlan}
+              title={!currentPlan ? "Pick a plan first" : undefined}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
             >
               <Upload className="w-4 h-4" />
@@ -249,24 +237,8 @@ export default function DashboardPage() {
                     <div className="text-xs text-muted-foreground truncate">
                       {site.original_filename} · {(site.size_bytes / 1024 / 1024).toFixed(1)} MB
                     </div>
-                    {site.status === "live" && site.url && (
-                      <a
-                        href={site.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
-                      >
-                        {site.url}
-                        <ExternalLink className="w-3 h-3 shrink-0" />
-                      </a>
-                    )}
-                    {site.status === "failed" && site.error_message && (
-                      <p className="text-xs text-destructive mt-0.5 truncate" title={site.error_message}>
-                        {site.error_message}
-                      </p>
-                    )}
                   </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${STATUS_STYLES[site.status]}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${STATUS_STYLES[site.status]}`}>
                     {STATUS_LABEL[site.status]}
                   </span>
                 </div>
