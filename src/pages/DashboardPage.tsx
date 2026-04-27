@@ -42,6 +42,18 @@ export default function DashboardPage() {
 
   const currentPlan = profile?.plan && profile.plan !== "none" ? PLANS[profile.plan as Exclude<PlanId, "none">] : null;
 
+  const atSiteLimit =
+    currentPlan !== null &&
+    currentPlan.maxSites !== null &&
+    sites.length >= currentPlan.maxSites;
+
+  const uploadDisabled = !currentPlan || atSiteLimit;
+  const uploadTitle = !currentPlan
+    ? "Pick a plan first"
+    : atSiteLimit
+      ? `Your ${currentPlan.name} plan allows ${currentPlan.maxSites} site${currentPlan.maxSites === 1 ? "" : "s"}. Upgrade to add more.`
+      : undefined;
+
   if (sitesError) {
     return (
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -209,8 +221,8 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold text-foreground">Your Sites</h2>
             <button
               onClick={() => setUploadOpen(true)}
-              disabled={!currentPlan}
-              title={!currentPlan ? "Pick a plan first" : undefined}
+              disabled={uploadDisabled}
+              title={uploadTitle}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
             >
               <Upload className="w-4 h-4" />
