@@ -1,4 +1,5 @@
 export type PlanId = "none" | "smol_brie" | "thicc_brie" | "mega_brie" | "admin";
+export type CustomerPlanId = Exclude<PlanId, "none" | "admin">;
 
 export interface PlanDetails {
   id: PlanId;
@@ -11,7 +12,7 @@ export interface PlanDetails {
   popular: boolean;
 }
 
-export const PLANS: Record<Exclude<PlanId, "none">, PlanDetails> = {
+export const PLANS: Record<CustomerPlanId, PlanDetails> = {
   smol_brie: {
     id: "smol_brie",
     name: "Smol Brie",
@@ -65,4 +66,20 @@ export const PLANS: Record<Exclude<PlanId, "none">, PlanDetails> = {
     ],
     popular: false,
   },
+};
+
+export const ADMIN_PLAN: PlanDetails = {
+  id: "admin",
+  name: "Admin",
+  price: "Internal",
+  period: "",
+  meme: "🛡️",
+  description: "Full access to platform controls, users, and system oversight.",
+  features: [
+    "Admin Dashboard Access",
+    "User Management",
+    "Global Site Visibility",
+    "Operational Controls",
+  ],
+  popular: false,
 };

@@ -1,15 +1,23 @@
 -- FIRST ADMIN SETUP SCRIPT
 -- Run this in your Supabase SQL Editor to set a user as admin
--- Replace 'admin@example.com' with the actual admin email address
+-- Replace the email in both places below
 
--- Find the user by email and update their profile to admin
-UPDATE public.profiles 
-SET plan = 'admin' 
-WHERE id = (
-  SELECT id FROM auth.users 
-  WHERE email = 'lars@lakke.be' 
-  LIMIT 1
-);
+-- Ensure profile row exists for this user
+INSERT INTO public.profiles (id, plan)
+SELECT u.id, 'none'
+FROM auth.users u
+WHERE u.email = 'lars@lakke.be'
+ON CONFLICT (id) DO NOTHING;
 
--- Verify the admin was set (you should see the admin user in results)
-SELECT id, plan, created_at FROM public.profiles WHERE plan = 'admin';
+-- Set selected user to admin
+UPDATE public.profiles p
+SET plan = 'admin', updated_at = now()
+FROM auth.users u
+WHERE p.id = u.id
+  AND u.email = 'lars@lakke.be';
+
+-- Verify this specific user
+SELECT u.email, p.id, p.plan, p.created_at, p.updated_at
+FROM public.profiles p
+JOIN auth.users u ON u.id = p.id
+WHERE u.email = 'lars@lakke.be';
