@@ -84,6 +84,19 @@ export default function DashboardPage() {
             <span className="text-foreground">Hosting</span>
           </span>
           <div className="flex items-center gap-4">
+            {profile?.plan === "admin" && (
+              <>
+                <span className="hidden sm:inline-flex items-center rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  Admin
+                </span>
+                <Link
+                  to="/admin"
+                  className="px-4 py-2 rounded-lg border border-primary/40 bg-primary/10 text-sm text-primary hover:bg-primary/20 transition-colors"
+                >
+                  Admin Dashboard
+                </Link>
+              </>
+            )}
             <span className="text-sm text-muted-foreground hidden sm:block">
               {user?.email}
             </span>

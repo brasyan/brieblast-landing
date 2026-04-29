@@ -36,8 +36,28 @@ export default function AdminProtectedRoute({ children }: { children: React.Reac
     );
   }
 
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-xl rounded-lg border border-border bg-card p-4 text-foreground">
+          <h2 className="font-semibold">Profile not loaded yet</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            We could not find your profile data. Retry once, then run the admin setup SQL if this continues.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="mt-3 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (profile?.plan !== "admin") {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
