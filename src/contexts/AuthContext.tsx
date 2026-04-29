@@ -52,7 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
-      ...(captchaToken ? { options: { captchaToken } } : {}),
+      options: {
+        captchaToken,
+      },
     });
     return { error: error?.message ?? null };
   };
@@ -64,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/login`,
-        ...(captchaToken ? { captchaToken } : {}),
+        captchaToken,
       },
     });
     return { error: error?.message ?? null };

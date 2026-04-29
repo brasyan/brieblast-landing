@@ -11,8 +11,9 @@ export default function LoginPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileError, setTurnstileError] = useState<string | null>(null);
   const [turnstileKey, setTurnstileKey] = useState(0);
-  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
   const {
     register,
@@ -38,25 +39,22 @@ export default function LoginPage() {
     setServerError(null);
 
     if (!turnstileSiteKey) {
-      setServerError("Security check is not configured. Please contact support.");
+      setTurnstileError("Security check is not configured.");
       return;
     }
 
     if (!turnstileToken) {
-      setServerError("Please complete the security check.");
+      setTurnstileError("Please complete the security check.");
       return;
     }
 
     setIsSubmitting(true);
     const { error } = await signIn(data.email, data.password, turnstileToken);
-
-    setTurnstileToken(null);
-    setTurnstileKey((value) => value + 1);
-
     if (error) {
       setServerError(error);
+      setTurnstileToken(null);
+      setTurnstileKey((previous) => previous + 1);
     }
-
     setIsSubmitting(false);
   };
 
@@ -129,14 +127,25 @@ export default function LoginPage() {
               )}
             </div>
 
-            {turnstileSiteKey ? (
-              <TurnstileWidget
-                key={turnstileKey}
-                siteKey={turnstileSiteKey}
-                onTokenChange={setTurnstileToken}
-              />
-            ) : (
-              <p className="text-destructive text-xs">Missing Turnstile site key configuration.</p>
+            <TurnstileWidget
+              key={turnstileKey}
+              siteKey={turnstileSiteKey}
+              className="flex justify-center"
+              onVerify={(token) => {
+                setTurnstileToken(token);
+                setTurnstileError(null);
+              }}
+              onExpire={() => {
+                setTurnstileToken(null);
+                setTurnstileError("Security check expired. Please complete it again.");
+              }}
+              onError={(message) => {
+                setTurnstileToken(null);
+                setTurnstileError(message);
+              }}
+            />
+            {turnstileError && (
+              <p className="text-destructive text-xs">{turnstileError}</p>
             )}
 
             <button

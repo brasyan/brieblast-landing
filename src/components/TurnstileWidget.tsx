@@ -1,166 +1,163 @@
 import { useEffect, useRef, useState } from "react";
 
-const TURNSTILE_SCRIPT_ID = "cf-turnstile-script";
+type TurnstileTheme = "light" | "dark" | "auto";
+type TurnstileSize = "normal" | "compact" | "flexible";
+
+interface TurnstileWidgetProps {
+  siteKey?: string;
+  onVerify: (token: string) => void;
+  onExpire: () => void;
+  onError: (message: string) => void;
+  theme?: TurnstileTheme;
+  size?: TurnstileSize;
+  className?: string;
+}
+
+interface TurnstileRenderOptions {
+  sitekey: string;
+  callback: (token: string) => void;
+  "expired-callback": () => void;
+  "error-callback": () => void;
+  theme?: TurnstileTheme;
+  size?: TurnstileSize;
+}
+
+interface TurnstileApi {
+  render: (container: string | HTMLElement, options: TurnstileRenderOptions) => string;
+  remove: (widgetId: string) => void;
+}
+
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
+
+const TURNSTILE_SCRIPT_ID = "cloudflare-turnstile-script";
 const TURNSTILE_SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-const TURNSTILE_READY_TIMEOUT_MS = 5000;
 
 let turnstileScriptPromise: Promise<void> | null = null;
 
-function formatTurnstileError(errorCode?: string | number) {
-  if (errorCode === undefined || errorCode === null || errorCode === "") {
-    return "Security check failed to load. Please refresh and try again.";
-  }
-
-  return `Security check failed to load (Turnstile error ${errorCode}). This usually means a hostname/site-key mismatch or a blocked Cloudflare script.`;
-}
-
-function waitForTurnstile() {
-  return new Promise<void>((resolve, reject) => {
-    const startedAt = Date.now();
-
-    const check = () => {
-      if (window.turnstile) {
-        resolve();
-        return;
-      }
-
-      if (Date.now() - startedAt >= TURNSTILE_READY_TIMEOUT_MS) {
-        reject(new Error("Turnstile did not become ready in time"));
-        return;
-      }
-
-      window.setTimeout(check, 50);
-    };
-
-    check();
-  });
-}
-
 function loadTurnstileScript() {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("Turnstile can only be loaded in the browser"));
-  }
-
   if (window.turnstile) {
     return Promise.resolve();
   }
 
-  if (!turnstileScriptPromise) {
-    turnstileScriptPromise = new Promise((resolve, reject) => {
-      const existingScript = document.getElementById(TURNSTILE_SCRIPT_ID) as HTMLScriptElement | null;
-      const handleLoaded = () => {
-        waitForTurnstile()
-          .then(resolve)
-          .catch((error) => {
-            turnstileScriptPromise = null;
-            reject(error);
-          });
-      };
-      const handleError = () => {
-        turnstileScriptPromise = null;
-        reject(new Error("Failed to load Turnstile script"));
-      };
-
-      if (existingScript) {
-        if (window.turnstile || existingScript.dataset.loaded === "true") {
-          handleLoaded();
-          return;
-        }
-
-        existingScript.addEventListener("load", handleLoaded, { once: true });
-        existingScript.addEventListener("error", handleError, { once: true });
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.id = TURNSTILE_SCRIPT_ID;
-      script.src = TURNSTILE_SCRIPT_SRC;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        script.dataset.loaded = "true";
-        handleLoaded();
-      };
-      script.onerror = handleError;
-      document.head.appendChild(script);
-    });
+  if (turnstileScriptPromise) {
+    return turnstileScriptPromise;
   }
+
+  turnstileScriptPromise = new Promise((resolve, reject) => {
+    const existingScript = document.getElementById(TURNSTILE_SCRIPT_ID) as HTMLScriptElement | null;
+
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Failed to load Turnstile script.")), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = TURNSTILE_SCRIPT_ID;
+    script.src = TURNSTILE_SCRIPT_SRC;
+    script.async = true;
+    script.defer = true;
+
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Turnstile script."));
+
+    document.head.appendChild(script);
+  });
 
   return turnstileScriptPromise;
 }
 
-interface TurnstileWidgetProps {
-  siteKey: string;
-  onTokenChange: (token: string | null) => void;
-}
-
-export default function TurnstileWidget({ siteKey, onTokenChange }: TurnstileWidgetProps) {
+export default function TurnstileWidget({
+  siteKey,
+  onVerify,
+  onExpire,
+  onError,
+  theme = "auto",
+  size = "normal",
+  className,
+}: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const onVerifyRef = useRef(onVerify);
+  const onExpireRef = useRef(onExpire);
+  const onErrorRef = useRef(onError);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isActive = true;
-    setLoadError(null);
-    onTokenChange(null);
+    onVerifyRef.current = onVerify;
+    onExpireRef.current = onExpire;
+    onErrorRef.current = onError;
+  }, [onVerify, onExpire, onError]);
 
-    const renderTurnstile = async () => {
+  useEffect(() => {
+    let mounted = true;
+
+    if (!siteKey) {
+      setIsLoading(false);
+      return;
+    }
+
+    const renderWidget = async () => {
       try {
         await loadTurnstileScript();
 
-        if (!isActive || !containerRef.current || !window.turnstile) {
+        if (!mounted || !containerRef.current || !window.turnstile) {
           return;
         }
 
-        containerRef.current.innerHTML = "";
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey: siteKey,
-          callback: (token: string) => {
-            setLoadError(null);
-            onTokenChange(token);
+          callback: (token) => {
+            onVerifyRef.current(token);
           },
           "expired-callback": () => {
-            onTokenChange(null);
+            onExpireRef.current();
           },
-          "error-callback": (errorCode?: string | number) => {
-            setLoadError(formatTurnstileError(errorCode));
-            onTokenChange(null);
-            return true;
+          "error-callback": () => {
+            onErrorRef.current("Security check failed. Please try again.");
           },
-          "timeout-callback": () => {
-            setLoadError("Security check timed out. Please try again.");
-            onTokenChange(null);
-            if (widgetIdRef.current && window.turnstile) {
-              window.turnstile.reset(widgetIdRef.current);
-            }
-          },
-          theme: "auto",
-          size: "normal",
-          appearance: "always",
+          theme,
+          size,
         });
+
+        setIsLoading(false);
       } catch {
-        if (isActive) {
-          setLoadError("Could not load security check. Please disable blockers or refresh and try again.");
-          onTokenChange(null);
+        if (mounted) {
+          setIsLoading(false);
+          onErrorRef.current("Unable to load security check. Please refresh and try again.");
         }
       }
     };
 
-    renderTurnstile();
+    void renderWidget();
 
     return () => {
-      isActive = false;
-
+      mounted = false;
       if (widgetIdRef.current && window.turnstile) {
         window.turnstile.remove(widgetIdRef.current);
         widgetIdRef.current = null;
       }
     };
-  }, [onTokenChange, siteKey]);
+  }, [siteKey, theme, size]);
 
-  if (loadError) {
-    return <p className="text-destructive text-xs">{loadError}</p>;
+  if (!siteKey) {
+    return (
+      <div className={className}>
+        <p className="text-xs text-destructive">Turnstile is not configured.</p>
+      </div>
+    );
   }
 
-  return <div ref={containerRef} className="min-h-[65px]" />;
+  return (
+    <div className={className}>
+      {isLoading && <p className="text-xs text-muted-foreground mb-2">Loading security check...</p>}
+      <div ref={containerRef} style={{ minHeight: 65 }} />
+    </div>
+  );
 }
