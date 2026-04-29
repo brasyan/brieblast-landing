@@ -1,4 +1,4 @@
-export type PlanId = "none" | "smol_brie" | "thicc_brie" | "mega_brie";
+export type PlanId = "none" | "smol_brie" | "thicc_brie" | "mega_brie" | "admin";
 
 export interface PlanDetails {
   id: PlanId;
