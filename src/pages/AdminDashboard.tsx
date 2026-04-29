@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Users, HardDrive, Globe, LogOut, BarChart3, Activity } from "lucide-react";
+import { Users, HardDrive, Globe, LogOut, BarChart3, Activity, ShieldAlert, Server } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllUsers } from "@/hooks/useAllUsers";
-import { supabase } from "@/lib/supabase";
+import type { PlanId } from "@/lib/plans";
 import { useNavigate } from "react-router-dom";
 import {
   Table,
@@ -24,35 +24,98 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const PLAN_OPTIONS: PlanId[] = ["none", "smol_brie", "thicc_brie", "mega_brie", "admin"];
 
 const AdminDashboard = () => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
-  const { users, loading, error } = useAllUsers();
-  const [selectedUser, setSelectedUser] = useState<(typeof users)[0] | null>(null);
+  const { toast } = useToast();
+  const {
+    users,
+    sites,
+    activity,
+    loading,
+    error,
+    statusCounts,
+    totalStorageBytes,
+    proxmoxAttachedSites,
+    updateUserPlan,
+  } = useAllUsers();
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<PlanId | "">("");
+  const [savingPlan, setSavingPlan] = useState(false);
 
   const handleLogout = async () => {
     await signOut();
     navigate("/");
   };
 
-  // Calculate stats
+  const selectedUser = users.find((user) => user.id === selectedUserId) ?? null;
+
   const totalUsers = users.length;
-  const totalStorage = users.reduce((sum, user) => sum + user.total_storage_bytes, 0);
+  const totalStorage = totalStorageBytes;
   const totalSites = users.reduce((sum, user) => sum + user.sites_count, 0);
-  const activeUsers = users.filter((u) => u.last_sign_in_at).length;
+  const activeUsers = users.filter((u) => {
+    const lastUpdate = new Date(u.updated_at).getTime();
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return lastUpdate >= sevenDaysAgo;
+  }).length;
+  const failedSites = statusCounts.failed;
+  const liveSites = statusCounts.live;
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return "0 B";
     const k = 1024;
     const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
+  const openUserDialog = (userId: string, plan: PlanId) => {
+    setSelectedUserId(userId);
+    setSelectedPlan(plan);
+  };
+
+  const handleSavePlan = async () => {
+    if (!selectedUser || !selectedPlan) return;
+
+    setSavingPlan(true);
+    const { error: updateError } = await updateUserPlan(selectedUser.id, selectedPlan);
+    setSavingPlan(false);
+
+    if (updateError) {
+      toast({
+        title: "Failed to update plan",
+        description: updateError,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Plan updated",
+      description: `User plan changed to ${selectedPlan.replace("_", " ")}.`,
+    });
+  };
+
+  const sortedUsersByStorage = [...users]
+    .sort((a, b) => b.total_storage_bytes - a.total_storage_bytes)
+    .slice(0, 8);
+
+  const storageDenominator = sortedUsersByStorage[0]?.total_storage_bytes || 1;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div>
@@ -72,9 +135,7 @@ const AdminDashboard = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 pt-24 pb-12">
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-3">
@@ -85,7 +146,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalUsers}</div>
-              <p className="text-xs text-muted-foreground">{activeUsers} active</p>
+              <p className="text-xs text-muted-foreground">{activeUsers} updated in the last 7 days</p>
             </CardContent>
           </Card>
 
@@ -123,13 +184,16 @@ const AdminDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-500">Healthy</div>
-              <p className="text-xs text-muted-foreground">All systems online</p>
+              <div className={`text-2xl font-bold ${failedSites > 0 ? "text-yellow-500" : "text-green-500"}`}>
+                {failedSites > 0 ? "Degraded" : "Healthy"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {liveSites} live / {failedSites} failed sites
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs */}
         <Tabs defaultValue="clients" className="space-y-4">
           <TabsList>
             <TabsTrigger value="clients">Clients</TabsTrigger>
@@ -137,7 +201,6 @@ const AdminDashboard = () => {
             <TabsTrigger value="resources">Proxmox Resources</TabsTrigger>
           </TabsList>
 
-          {/* Clients Tab */}
           <TabsContent value="clients" className="space-y-4">
             <Card>
               <CardHeader>
@@ -147,6 +210,9 @@ const AdminDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-4 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs text-primary">
+                  User emails and auth events are not exposed by Supabase client APIs. This view uses secure user IDs from your app tables.
+                </div>
                 {error && (
                   <div className="mb-4 p-4 rounded-lg bg-destructive/10 text-destructive text-sm">
                     {error}
@@ -162,12 +228,12 @@ const AdminDashboard = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Email</TableHead>
+                          <TableHead>User</TableHead>
                           <TableHead>Plan</TableHead>
                           <TableHead>Storage</TableHead>
                           <TableHead>Sites</TableHead>
                           <TableHead>Joined</TableHead>
-                          <TableHead>Last Active</TableHead>
+                          <TableHead>Updated</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -186,11 +252,9 @@ const AdminDashboard = () => {
                               {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {user.last_sign_in_at
-                                ? formatDistanceToNow(new Date(user.last_sign_in_at), {
-                                    addSuffix: true,
-                                  })
-                                : "Never"}
+                              {formatDistanceToNow(new Date(user.updated_at), {
+                                addSuffix: true,
+                              })}
                             </TableCell>
                             <TableCell>
                               <Dialog>
@@ -198,9 +262,9 @@ const AdminDashboard = () => {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setSelectedUser(user)}
+                                    onClick={() => openUserDialog(user.id, user.plan)}
                                   >
-                                    View
+                                    Manage
                                   </Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -255,18 +319,57 @@ const AdminDashboard = () => {
                                           Last Active
                                         </label>
                                         <p className="text-sm">
-                                          {selectedUser?.last_sign_in_at
-                                            ? new Date(selectedUser.last_sign_in_at).toLocaleDateString()
-                                            : "Never"}
+                                          {selectedUser?.updated_at
+                                            ? new Date(selectedUser.updated_at).toLocaleDateString()
+                                            : "Unknown"}
                                         </p>
                                       </div>
                                     </div>
                                     <div className="pt-4 border-t space-y-2">
-                                      <Button className="w-full" variant="outline">
-                                        Edit Plan
+                                      <label className="text-sm font-medium text-muted-foreground">Plan</label>
+                                      <Select
+                                        value={selectedPlan || undefined}
+                                        onValueChange={(value) => setSelectedPlan(value as PlanId)}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select plan" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {PLAN_OPTIONS.map((plan) => (
+                                            <SelectItem key={plan} value={plan}>
+                                              {plan.replace("_", " ")}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <Button className="w-full" onClick={handleSavePlan} disabled={!selectedPlan || savingPlan}>
+                                        {savingPlan ? "Saving..." : "Save Plan"}
                                       </Button>
-                                      <Button className="w-full" variant="destructive">
-                                        Suspend User
+                                      <Button
+                                        className="w-full"
+                                        variant="destructive"
+                                        onClick={async () => {
+                                          if (!selectedUser) return;
+                                          setSavingPlan(true);
+                                          const { error: updateError } = await updateUserPlan(selectedUser.id, "none");
+                                          setSavingPlan(false);
+                                          if (updateError) {
+                                            toast({
+                                              title: "Suspend failed",
+                                              description: updateError,
+                                              variant: "destructive",
+                                            });
+                                            return;
+                                          }
+                                          setSelectedPlan("none");
+                                          toast({
+                                            title: "User suspended",
+                                            description: "Plan set to none.",
+                                          });
+                                        }}
+                                        disabled={savingPlan}
+                                      >
+                                        Suspend (set plan to none)
                                       </Button>
                                     </div>
                                   </div>
@@ -283,7 +386,6 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* Activity Logs Tab */}
           <TabsContent value="activity">
             <Card>
               <CardHeader>
@@ -292,34 +394,40 @@ const AdminDashboard = () => {
                   Supabase Activity Logs
                 </CardTitle>
                 <CardDescription>
-                  Real-time authentication and database events
+                  Database activity derived from profiles and sites
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Activity className="w-12 h-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Activity Logs Coming Soon</h3>
-                  <p className="text-muted-foreground text-sm max-w-md">
-                    We're integrating Supabase audit logs to show user logins, password changes, and
-                    other authentication events. This feature will be available in the next update.
-                  </p>
-                  <div className="mt-6 p-4 rounded-lg bg-muted text-sm text-muted-foreground max-w-md">
-                    <p className="font-mono text-xs">
-                      📋 User Login Events
-                      <br />
-                      🔐 Password Changes
-                      <br />
-                      📧 Email Confirmations
-                      <br />
-                      🚫 Failed Attempts
-                    </p>
-                  </div>
+                <div className="mb-4 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Supabase Auth audit logs (login/password changes) require server-side access and are not available via the browser anon key.
                 </div>
+                {activity.length === 0 ? (
+                  <div className="text-sm text-muted-foreground">No activity yet.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {activity.slice(0, 50).map((event) => (
+                      <div key={event.id} className="rounded-md border border-border p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            {event.kind === "site_failed" ? (
+                              <ShieldAlert className="h-4 w-4 text-destructive" />
+                            ) : (
+                              <Activity className="h-4 w-4 text-primary" />
+                            )}
+                            <span>{event.summary}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Proxmox Resources Tab */}
           <TabsContent value="resources">
             <Card>
               <CardHeader>
@@ -328,27 +436,62 @@ const AdminDashboard = () => {
                   Proxmox Resource Usage
                 </CardTitle>
                 <CardDescription>
-                  Virtual machine and infrastructure metrics
+                  Resource metrics derived from deployed sites
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <BarChart3 className="w-12 h-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Proxmox Integration Coming Soon</h3>
-                  <p className="text-muted-foreground text-sm max-w-md">
-                    We're setting up Proxmox API integration to display real-time resource usage,
-                    VM performance metrics, and infrastructure health.
-                  </p>
-                  <div className="mt-6 p-4 rounded-lg bg-muted text-sm text-muted-foreground max-w-md">
-                    <p className="font-mono text-xs">
-                      💻 CPU Usage
-                      <br />
-                      🧠 Memory Usage
-                      <br />
-                      💾 Storage Metrics
-                      <br />
-                      🌐 Network I/O
-                    </p>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="rounded-md border border-border p-4">
+                      <h3 className="font-semibold mb-2 flex items-center gap-2">
+                        <Server className="h-4 w-4" />
+                        Proxmox Attachment
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {proxmoxAttachedSites}/{sites.length} sites have a VMID attached
+                      </p>
+                      <Progress
+                        value={sites.length > 0 ? (proxmoxAttachedSites / sites.length) * 100 : 0}
+                      />
+                    </div>
+
+                    <div className="rounded-md border border-border p-4">
+                      <h3 className="font-semibold mb-2">Site Status Distribution</h3>
+                      <div className="space-y-3">
+                        {(["live", "provisioning", "uploaded", "failed"] as const).map((status) => {
+                          const count = statusCounts[status] || 0;
+                          const percentage = sites.length > 0 ? (count / sites.length) * 100 : 0;
+                          return (
+                            <div key={status}>
+                              <div className="flex items-center justify-between text-sm mb-1">
+                                <span className="capitalize">{status}</span>
+                                <span className="text-muted-foreground">{count}</span>
+                              </div>
+                              <Progress value={percentage} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border border-border p-4">
+                    <h3 className="font-semibold mb-3">Top Users by Storage</h3>
+                    {sortedUsersByStorage.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No user storage data yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {sortedUsersByStorage.map((user) => (
+                          <div key={user.id}>
+                            <div className="flex items-center justify-between text-sm mb-1">
+                              <span className="font-medium">{user.email}</span>
+                              <span className="text-muted-foreground">{formatBytes(user.total_storage_bytes)}</span>
+                            </div>
+                            <Progress value={(user.total_storage_bytes / storageDenominator) * 100} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
