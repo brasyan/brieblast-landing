@@ -67,11 +67,12 @@ function buildActivity(profiles: ProfileRow[], sites: SiteRow[]) {
 
   for (const profile of profiles) {
     const actor = getUserLabel(profile);
+    const userEmail = profile.email ? ` (${profile.email})` : "";
     events.push({
       id: `profile-created-${profile.id}`,
       kind: "profile_created",
       actor,
-      summary: `${actor} profile created`,
+      summary: `New signup: ${actor}${userEmail}`,
       timestamp: profile.created_at,
     });
 
@@ -80,7 +81,7 @@ function buildActivity(profiles: ProfileRow[], sites: SiteRow[]) {
         id: `profile-updated-${profile.id}-${profile.updated_at}`,
         kind: "profile_updated",
         actor,
-        summary: `${actor} profile updated (plan: ${profile.plan.replace("_", " ")})`,
+        summary: `Plan update: ${actor} → ${profile.plan.replace(/_/g, " ")} plan`,
         timestamp: profile.updated_at,
       });
     }
@@ -89,11 +90,12 @@ function buildActivity(profiles: ProfileRow[], sites: SiteRow[]) {
   for (const site of sites) {
     const siteProfile = profiles.find(p => p.id === site.user_id);
     const actor = siteProfile ? getUserLabel(siteProfile) : `user-${site.user_id.slice(0, 8)}`;
+    const sizeKB = Math.round(site.size_bytes / 1024);
     events.push({
       id: `site-created-${site.id}`,
       kind: "site_uploaded",
       actor,
-      summary: `${actor} uploaded site ${site.name}`,
+      summary: `Site uploaded: ${site.name} (${sizeKB} KB) by ${actor}`,
       timestamp: site.created_at,
     });
 
@@ -104,8 +106,8 @@ function buildActivity(profiles: ProfileRow[], sites: SiteRow[]) {
         actor,
         summary:
           site.status === "failed"
-            ? `${actor} site ${site.name} failed`
-            : `${actor} site ${site.name} status is ${site.status}`,
+            ? `Site deployment failed: ${site.name}${site.error_message ? ` — ${site.error_message}` : ""}`
+            : `Site status changed: ${site.name} → ${site.status}`,
         timestamp: site.updated_at,
       });
     }

@@ -418,24 +418,39 @@ const AdminDashboard = () => {
                 {activity.length === 0 ? (
                   <div className="text-sm text-muted-foreground">No activity yet.</div>
                 ) : (
-                  <div className="space-y-2">
-                    {activity.slice(0, 50).map((event) => (
-                      <div key={event.id} className="rounded-md border border-border p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2 text-sm font-medium">
-                            {event.kind === "site_failed" ? (
-                              <ShieldAlert className="h-4 w-4 text-destructive" />
-                            ) : (
-                              <Activity className="h-4 w-4 text-primary" />
-                            )}
-                            <span>{event.summary}</span>
+                  <div className="space-y-3">
+                    {activity.slice(0, 50).map((event) => {
+                      const isFailure = event.kind === "site_failed";
+                      const eventIcons = {
+                        profile_created: "👤",
+                        profile_updated: "📊",
+                        site_uploaded: "📦",
+                        site_updated: "🔄",
+                        site_failed: "❌",
+                      };
+                      return (
+                        <div
+                          key={event.id}
+                          className={`rounded-md border p-3 transition-colors ${
+                            isFailure
+                              ? "border-destructive/30 bg-destructive/5"
+                              : "border-border bg-card hover:bg-muted/50"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-center gap-2 text-sm font-semibold">
+                                <span className="text-lg">{eventIcons[event.kind]}</span>
+                                <span>{event.summary}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
+                              </div>
+                            </div>
                           </div>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
-                          </span>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
