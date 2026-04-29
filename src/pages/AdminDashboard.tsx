@@ -229,6 +229,7 @@ const AdminDashboard = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>User</TableHead>
+                          <TableHead>Email</TableHead>
                           <TableHead>Plan</TableHead>
                           <TableHead>Storage</TableHead>
                           <TableHead>Sites</TableHead>
@@ -240,7 +241,8 @@ const AdminDashboard = () => {
                       <TableBody>
                         {users.map((user) => (
                           <TableRow key={user.id}>
-                            <TableCell className="font-medium">{user.email}</TableCell>
+                            <TableCell className="font-medium">{user.display_name || user.id.slice(0, 8)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{user.email || "—"}</TableCell>
                             <TableCell>
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary capitalize">
                                 {user.plan.replace("_", " ")}
@@ -271,11 +273,23 @@ const AdminDashboard = () => {
                                   <DialogHeader>
                                     <DialogTitle>User Details</DialogTitle>
                                     <DialogDescription>
-                                      {selectedUser?.email}
+                                      {selectedUser?.display_name || selectedUser?.email || selectedUser?.id}
                                     </DialogDescription>
                                   </DialogHeader>
                                   <div className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <label className="text-sm font-medium text-muted-foreground">
+                                          Email
+                                        </label>
+                                        <p className="text-sm">{selectedUser?.email || "Not provided"}</p>
+                                      </div>
+                                      <div>
+                                        <label className="text-sm font-medium text-muted-foreground">
+                                          Display Name
+                                        </label>
+                                        <p className="text-sm">{selectedUser?.display_name || "Not provided"}</p>
+                                      </div>
                                       <div>
                                         <label className="text-sm font-medium text-muted-foreground">
                                           User ID
@@ -484,7 +498,7 @@ const AdminDashboard = () => {
                         {sortedUsersByStorage.map((user) => (
                           <div key={user.id}>
                             <div className="flex items-center justify-between text-sm mb-1">
-                              <span className="font-medium">{user.email}</span>
+                              <span className="font-medium">{user.display_name || user.email || user.id.slice(0, 8)}</span>
                               <span className="text-muted-foreground">{formatBytes(user.total_storage_bytes)}</span>
                             </div>
                             <Progress value={(user.total_storage_bytes / storageDenominator) * 100} />

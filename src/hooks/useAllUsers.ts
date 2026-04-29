@@ -5,7 +5,8 @@ import type { SiteStatus } from "@/hooks/useSites";
 
 export interface AdminUser {
   id: string;
-  email: string;
+  email: string | null;
+  display_name: string | null;
   plan: PlanId;
   created_at: string;
   updated_at: string;
@@ -49,21 +50,23 @@ interface SiteRow {
 interface ProfileRow {
   id: string;
   plan: PlanId;
+  email: string | null;
+  display_name: string | null;
   created_at: string;
   updated_at: string;
 }
 
 const SITE_STATUSES: SiteStatus[] = ["live", "provisioning", "uploaded", "failed"];
 
-function getUserLabel(userId: string) {
-  return `user-${userId.slice(0, 8)}`;
+function getUserLabel(profile: ProfileRow) {
+  return profile.display_name || profile.email || `user-${profile.id.slice(0, 8)}`;
 }
 
 function buildActivity(profiles: ProfileRow[], sites: SiteRow[]) {
   const events: AdminActivityEvent[] = [];
 
   for (const profile of profiles) {
-    const actor = getUserLabel(profile.id);
+    const actor = getUserLabel(profile);
     events.push({
       id: `profile-created-${profile.id}`,
       kind: "profile_created",
@@ -84,7 +87,8 @@ function buildActivity(profiles: ProfileRow[], sites: SiteRow[]) {
   }
 
   for (const site of sites) {
-    const actor = getUserLabel(site.user_id);
+    const siteProfile = profiles.find(p => p.id === site.user_id);
+    const actor = siteProfile ? getUserLabel(siteProfile) : `user-${site.user_id.slice(0, 8)}`;
     events.push({
       id: `site-created-${site.id}`,
       kind: "site_uploaded",
@@ -126,7 +130,7 @@ export function useAllUsers() {
       // Fetch all profiles (RLS policy allows admins to read all)
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, plan, created_at, updated_at")
+        .select("id, plan, email, display_name, created_at, updated_at")
         .order("created_at", { ascending: false });
 
       if (profilesError) throw profilesError;
@@ -148,7 +152,8 @@ export function useAllUsers() {
 
         return {
           id: profile.id,
-          email: getUserLabel(profile.id),
+          email: profile.email,
+          display_name: profile.display_name,
           plan: profile.plan,
           created_at: profile.created_at,
           updated_at: profile.updated_at,
