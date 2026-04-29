@@ -15,6 +15,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
+import Dashboard from "./pages/Dashboard";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
@@ -46,6 +47,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route path="/dashboard-preview" element={<Dashboard />} />
             <Route
               path="/account-settings"
               element={
