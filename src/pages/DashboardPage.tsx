@@ -3,15 +3,48 @@ import { Link, useNavigate } from "react-router-dom";
 import { useProfile } from "@/hooks/useProfile";
 import { useSites, type SiteStatus } from "@/hooks/useSites";
 import { ADMIN_PLAN, PLANS, type CustomerPlanId, type PlanId } from "@/lib/plans";
-import { Check, Upload } from "lucide-react";
-import { useState } from "react";
+import {
+  Activity,
+  BarChart3,
+  Bell,
+  CreditCard,
+  Database,
+  FileText,
+  Globe,
+  HardDrive,
+  LayoutDashboard,
+  LifeBuoy,
+  LineChart,
+  MessageSquare,
+  Plus,
+  Rocket,
+  Search,
+  Settings,
+  Settings2,
+  ShieldCheck,
+  Upload,
+  Users,
+  Wifi,
+} from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Check } from "lucide-react";
+import { useState, useEffect } from "react";
 import SiteUploadDialog from "@/components/SiteUploadDialog";
 
 const STATUS_STYLES: Record<SiteStatus, string> = {
-  uploaded: "bg-muted text-muted-foreground",
-  provisioning: "bg-primary/20 text-primary",
-  live: "bg-accent/20 text-accent",
-  failed: "bg-destructive/20 text-destructive",
+  uploaded: "bg-muted text-muted-foreground border border-muted",
+  provisioning: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
+  live: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+  failed: "bg-destructive/20 text-destructive border border-destructive/30",
 };
 
 const STATUS_LABEL: Record<SiteStatus, string> = {
@@ -28,6 +61,9 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [changingPlan, setChangingPlan] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingPlanId, setPendingPlanId] = useState<PlanId | null>(null);
 
   const handleSignOut = async () => {
     await signOut();
@@ -35,9 +71,19 @@ export default function DashboardPage() {
   };
 
   const handleSelectPlan = async (planId: PlanId) => {
-    setChangingPlan(true);
-    await updatePlan(planId);
-    setChangingPlan(false);
+    if (profile?.plan === "admin" || profile?.plan === planId) return;
+    setPendingPlanId(planId);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmPlan = async () => {
+    if (pendingPlanId) {
+      setChangingPlan(true);
+      await updatePlan(pendingPlanId);
+      setChangingPlan(false);
+    }
+    setConfirmOpen(false);
+    setPendingPlanId(null);
   };
 
   const currentPlan =
@@ -46,6 +92,35 @@ export default function DashboardPage() {
       : profile?.plan && profile.plan !== "none"
         ? PLANS[profile.plan as CustomerPlanId]
         : null;
+
+  const pendingPlan = pendingPlanId ? PLANS[pendingPlanId] : null;
+
+  const liveSitesCount = sites.filter((site) => site.status === "live").length;
+
+  useEffect(() => {
+    const sectionIds = ["overview", "projects", "upload", "plan", "analytics", "billing", "support", "settings"];
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((section): section is HTMLElement => Boolean(section));
+
+    if (sections.length === 0) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+        if (visible[0]?.target?.id) {
+          setActiveSection(visible[0].target.id);
+        }
+      },
+      { rootMargin: "-20% 0px -60% 0px", threshold: [0.1, 0.25, 0.6] },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
 
   if (sitesError) {
     return (
@@ -57,9 +132,7 @@ export default function DashboardPage() {
               <p className="text-sm text-destructive/90">
                 Something went wrong while fetching your sites. Please try again.
               </p>
-              <p className="text-xs text-destructive/80 mt-1 break-words">
-                {sitesError}
-              </p>
+              <p className="text-xs text-destructive/80 mt-1 break-words">{sitesError}</p>
             </div>
             <button
               type="button"
@@ -75,226 +148,541 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Dashboard Nav */}
-      <nav className="border-b border-border bg-card/50 backdrop-blur-lg">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <span className="font-bold text-xl">
-            <span className="text-gradient-cheese">Brie</span>
-            <span className="text-foreground">Hosting</span>
-          </span>
-          <div className="flex items-center gap-4">
-            {profile?.plan === "admin" && (
-              <>
-                <span className="hidden sm:inline-flex items-center rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                  Admin
-                </span>
-                <Link
-                  to="/admin"
-                  className="px-4 py-2 rounded-lg border border-primary/40 bg-primary/10 text-sm text-primary hover:bg-primary/20 transition-colors"
-                >
-                  Admin Dashboard
-                </Link>
-              </>
-            )}
-            <span className="text-sm text-muted-foreground hidden sm:block">
-              {user?.email}
-            </span>
-            <Link
-              to="/account-settings"
-              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
-            >
-              Account settings
+    <div className="relative min-h-screen bg-background text-foreground scroll-smooth">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-32 left-1/2 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-yellow-500/10 blur-[140px]" />
+        <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-amber-500/10 blur-[120px]" />
+      </div>
+
+      <div className="relative flex">
+        {/* Sidebar */}
+        <aside className="hidden lg:flex lg:w-64 xl:w-72 flex-col border-r border-border bg-card/40 backdrop-blur-sm sticky top-0 h-screen">
+          <div className="px-6 py-6 border-b border-border">
+            <Link to="/" className="font-bold text-2xl tracking-tight hover:opacity-90 transition-opacity">
+              <span className="text-gradient-cheese">Brie</span>
+              <span className="text-foreground">Hosting</span>
             </Link>
-            <button
-              onClick={handleSignOut}
-              className="px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
-            >
-              Sign out
-            </button>
+            <p className="text-xs text-muted-foreground font-meme mt-1">Premium hosting with a cheesy smile.</p>
           </div>
-        </div>
-      </nav>
-
-      {/* Dashboard Content */}
-      <main className="max-w-6xl mx-auto px-4 py-12">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          Welcome back! 🧀
-        </h1>
-        <p className="text-muted-foreground mb-8">
-          Your cheesy dashboard awaits. This is where the magic happens.
-        </p>
-
-        {/* Current Plan Card */}
-        <div className="mb-10">
-          <h2 className="text-xl font-bold text-foreground mb-4">Your Plan</h2>
-          {profileLoading ? (
-            <div className="bg-card border border-border rounded-xl p-6 animate-pulse">
-              <div className="h-6 w-32 bg-muted rounded" />
-            </div>
-          ) : currentPlan ? (
-            <div className={`bg-card border-2 ${currentPlan.popular ? "border-primary glow-cheese" : "border-border"} rounded-xl p-6`}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl">{currentPlan.meme}</span>
-                    <h3 className="text-xl font-bold text-foreground">{currentPlan.name}</h3>
-                  </div>
-                  <p className="text-muted-foreground text-sm font-meme">{currentPlan.description}</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-3xl font-bold text-gradient-cheese">{currentPlan.price}</span>
-                  <span className="text-muted-foreground">{currentPlan.period}</span>
-                </div>
+          <nav className="flex-1 px-4 py-6 space-y-2">
+            <a
+              href="#overview"
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                activeSection === "overview"
+                  ? "border border-border/60 bg-background/60 text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+            >
+              <LayoutDashboard className="h-4 w-4 text-primary" />
+              Dashboard
+            </a>
+            <a
+              href="#projects"
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition ${
+                activeSection === "projects"
+                  ? "bg-muted/40 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+            >
+              <Globe className="h-4 w-4 text-yellow-400" />
+              My Sites
+            </a>
+            <a
+              href="#upload"
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition ${
+                activeSection === "upload"
+                  ? "bg-muted/40 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+            >
+              <Upload className="h-4 w-4 text-yellow-400" />
+              Upload Site
+            </a>
+            <a
+              href="#plan"
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition ${
+                activeSection === "plan"
+                  ? "bg-muted/40 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+            >
+              <ShieldCheck className="h-4 w-4 text-yellow-400" />
+              Plans
+            </a>
+            <a
+              href="#analytics"
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition ${
+                activeSection === "analytics"
+                  ? "bg-muted/40 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+            >
+              <BarChart3 className="h-4 w-4 text-yellow-400" />
+              Analytics
+            </a>
+            <a
+              href="#billing"
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition ${
+                activeSection === "billing"
+                  ? "bg-muted/40 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+            >
+              <CreditCard className="h-4 w-4 text-yellow-400" />
+              Billing
+            </a>
+            <a
+              href="#support"
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition ${
+                activeSection === "support"
+                  ? "bg-muted/40 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+            >
+              <LifeBuoy className="h-4 w-4 text-yellow-400" />
+              Support
+            </a>
+            <a
+              href="/account-settings"
+              className="w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 transition"
+            >
+              <Settings2 className="h-4 w-4 text-yellow-400" />
+              Settings
+            </a>
+          </nav>
+          <div className="px-6 pb-6">
+            <div className="rounded-2xl border border-border bg-background/70 p-4">
+              <p className="text-xs text-muted-foreground font-meme">Everything is running smoothly</p>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-sm font-semibold text-foreground">Live Sites</span>
+                <span className="text-sm text-yellow-300 font-semibold">{liveSitesCount}</span>
               </div>
-              <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {currentPlan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-foreground">
-                    <Check className="w-4 h-4 text-accent shrink-0" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <div className="bg-card border border-border rounded-xl p-6 text-center">
-              <p className="text-muted-foreground text-sm">No plan selected yet. Choose one below!</p>
-            </div>
-          )}
-        </div>
-
-        {/* Plan Selection */}
-        <div className="mb-10">
-          <h2 className="text-xl font-bold text-foreground mb-4">
-            {currentPlan ? "Change Plan" : "Choose a Plan"}
-          </h2>
-          {profile?.plan === "admin" && (
-            <div className="mb-4 rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
-              Admin account detected. Billing plan changes are disabled here.
-            </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {(Object.entries(PLANS) as [CustomerPlanId, typeof PLANS[keyof typeof PLANS]][]).map(([planId, plan]) => {
-              const isActive = profile?.plan === planId;
-              return (
+              <div className="mt-2 h-2 rounded-full bg-muted/60 overflow-hidden">
                 <div
-                  key={planId}
-                  className={`relative rounded-xl border-2 ${isActive ? "border-primary glow-cheese" : plan.popular ? "border-primary/50" : "border-border"} bg-card p-6 flex flex-col card-hover`}
-                >
-                  {isActive && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-accent text-accent-foreground text-xs font-bold">
-                      CURRENT
-                    </div>
-                  )}
-                  {!isActive && plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                      POPULAR 🔥
-                    </div>
-                  )}
-                  <div className="text-center mb-4">
-                    <div className="text-2xl mb-1">{plan.meme}</div>
-                    <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
+                  className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-amber-300 transition-all duration-500"
+                  style={{ width: `${sites.length > 0 ? Math.min((liveSitesCount / sites.length) * 100, 100) : 0}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg">
+            <div className="flex flex-col gap-4 px-4 py-4 lg:px-8 lg:py-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-muted/50 p-2 text-yellow-300">🧀</div>
+                  <div>
+                    <p className="text-xs text-muted-foreground font-meme">Your dashboard is ready</p>
+                    <p className="text-lg font-semibold text-foreground">Welcome back, {user?.email?.split("@")[0] || "Chef"}</p>
                   </div>
-                  <div className="text-center mb-4">
-                    <span className="text-3xl font-bold text-gradient-cheese">{plan.price}</span>
-                    <span className="text-muted-foreground text-sm">{plan.period}</span>
-                  </div>
-                  <ul className="space-y-2 mb-6 flex-1">
-                    {plan.features.map((feature, j) => (
-                      <li key={j} className="flex items-center gap-2 text-xs text-foreground">
-                        <Check className="w-3 h-3 text-accent shrink-0" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    onClick={() => handleSelectPlan(planId)}
-                    disabled={isActive || changingPlan || profile?.plan === "admin"}
-                    className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 ${
-                      isActive
-                        ? "bg-accent text-accent-foreground"
-                        : plan.popular
-                          ? "bg-primary text-primary-foreground"
-                          : "border border-border text-foreground hover:border-primary hover:text-primary"
-                    }`}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {profile?.plan === "admin" && (
+                    <>
+                      <span className="hidden sm:inline-flex items-center rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                        Admin
+                      </span>
+                      <Link
+                        to="/admin"
+                        className="hidden sm:inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                      >
+                        Admin Dashboard
+                      </Link>
+                    </>
+                  )}
+                  <Link
+                    to="/account-settings"
+                    className="hidden sm:inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
                   >
-                    {isActive ? "Current Plan ✓" : changingPlan ? "Updating..." : `Select ${plan.name}`}
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="inline-flex items-center justify-center rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                    aria-label="Sign out"
+                  >
+                    <span className="text-sm">→</span>
+                  </button>
+                  <button
+                    onClick={() => setUploadOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-sm text-foreground hover:border-yellow-400/70 transition"
+                  >
+                    <span className="h-6 w-6 rounded-full bg-yellow-500/20 flex items-center justify-center text-xs">
+                      {(user?.email?.[0] || "U").toUpperCase()}
+                    </span>
+                    {user?.email?.split("@")[0] || "User"}
                   </button>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Your Sites */}
-        <div className="mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-foreground">Your Sites</h2>
-            <button
-              onClick={() => setUploadOpen(true)}
-              disabled={!currentPlan}
-              title={!currentPlan ? "Pick a plan first" : undefined}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
-            >
-              <Upload className="w-4 h-4" />
-              Upload site
-            </button>
-          </div>
-
-          {sitesLoading ? (
-            <div className="bg-card border border-border rounded-xl p-6 animate-pulse">
-              <div className="h-5 w-40 bg-muted rounded" />
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="relative w-full sm:max-w-md">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    className="w-full rounded-xl border border-border bg-card/70 py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40"
+                    placeholder="Search sites..."
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setUploadOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-yellow-500/90 px-4 py-2 text-sm font-semibold text-black hover:bg-yellow-400 transition"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload Site
+                  </button>
+                  {currentPlan && currentPlan !== ADMIN_PLAN && (
+                    <a
+                      href="#plan"
+                      className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                    >
+                      <Rocket className="h-4 w-4" />
+                      Upgrade Plan
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
-          ) : sites.length === 0 ? (
-            <div className="bg-card border border-border rounded-xl p-6 text-center">
-              <p className="text-muted-foreground text-sm">
-                No sites yet — upload your first .zip to get cookin'. 🧀
-              </p>
-            </div>
-          ) : (
-            <div className="bg-card border border-border rounded-xl divide-y divide-border">
-              {sites.map((site) => (
-                <div key={site.id} className="p-4 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="font-bold text-foreground truncate">{site.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {site.original_filename} · {(site.size_bytes / 1024 / 1024).toFixed(1)} MB
+          </header>
+
+          <main className="px-4 pb-16 pt-8 lg:px-8">
+            {/* Overview Section */}
+            <section id="overview" className="mb-10 scroll-mt-28">
+              <div className="rounded-3xl border border-border bg-card/70 p-6 lg:p-8 shadow-lg shadow-black/10">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground font-meme">Fun branding, serious performance</p>
+                    <h1 className="mt-2 text-3xl font-bold text-foreground lg:text-4xl">
+                      Deploy fresh updates without the crumbs.
+                    </h1>
+                    <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+                      Everything you need to launch, manage, and scale your BrieHosting projects in one premium dashboard.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-border bg-background/60 p-4">
+                      <p className="text-xs text-muted-foreground">Active sites</p>
+                      <p className="mt-2 text-2xl font-semibold">{sites.length}</p>
+                      <p className="text-xs text-accent">Live data</p>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-background/60 p-4">
+                      <p className="text-xs text-muted-foreground">Current plan</p>
+                      <p className="mt-2 text-2xl font-semibold">{currentPlan?.name.split(" ")[0] || "None"}</p>
+                      <p className="text-xs text-yellow-300">Active</p>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-background/60 p-4">
+                      <p className="text-xs text-muted-foreground">Live status</p>
+                      <p className="mt-2 text-2xl font-semibold">{liveSitesCount}</p>
+                      <p className="text-xs text-emerald-300">Online</p>
                     </div>
                   </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${STATUS_STYLES[site.status]}`}>
-                    {STATUS_LABEL[site.status]}
-                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* Stats Section */}
+            <section className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 scroll-mt-28">
+              {[
+                { label: "Active Sites", value: sites.length.toString(), icon: Globe },
+                { label: "Current Plan", value: currentPlan?.name || "None", icon: ShieldCheck },
+                { label: "Live Sites", value: liveSitesCount.toString(), icon: Wifi },
+                { label: "Monthly Sites", value: (sites.length > 0 ? "Active" : "—"), icon: Users },
+                { label: "Uptime", value: "99.9%", icon: Activity },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-border bg-card/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">{item.label}</p>
+                    <span className="rounded-lg bg-muted/70 p-2 text-yellow-300">
+                      <item.icon className="h-4 w-4" />
+                    </span>
+                  </div>
+                  <p className="mt-4 text-2xl font-semibold text-foreground">{item.value}</p>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
+            </section>
 
-        {/* Quick Links */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-card border border-border rounded-xl p-6 card-hover">
-            <div className="text-3xl mb-3">🖥️</div>
-            <h2 className="font-bold text-foreground mb-1">Your Services</h2>
-            <p className="text-sm text-muted-foreground">No active services yet. Pick a plan to get started!</p>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-6 card-hover">
-            <div className="text-3xl mb-3">📊</div>
-            <h2 className="font-bold text-foreground mb-1">Usage</h2>
-            <p className="text-sm text-muted-foreground">Your resource usage will appear here.</p>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-6 card-hover">
-            <div className="text-3xl mb-3">🎫</div>
-            <h2 className="font-bold text-foreground mb-1">Support</h2>
-            <p className="text-sm text-muted-foreground">Need help? Open a support ticket anytime.</p>
-          </div>
-        </div>
-      </main>
+            {/* Projects Section */}
+            <section id="projects" className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr] scroll-mt-28">
+              <div id="upload" className="rounded-3xl border border-border bg-card/70 p-6 scroll-mt-28">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Your Sites</h2>
+                  <button
+                    onClick={() => setUploadOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                  >
+                    <Plus className="h-4 w-4" />
+                    New Site
+                  </button>
+                </div>
+                <div className="mt-5 space-y-3">
+                  {sitesLoading ? (
+                    <div className="rounded-2xl border border-border bg-background/60 p-6 text-sm text-muted-foreground animate-pulse">
+                      Loading your sites...
+                    </div>
+                  ) : sites.length === 0 ? (
+                    <div className="rounded-2xl border border-border bg-background/60 p-6 text-sm text-muted-foreground">
+                      No sites yet. Upload your first site to get started.
+                    </div>
+                  ) : (
+                    sites.map((site) => (
+                      <div
+                        key={site.id}
+                        className="rounded-2xl border border-border bg-background/60 p-5 transition hover:border-yellow-400/50 hover:shadow-lg hover:shadow-black/15"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm text-muted-foreground truncate">{site.original_filename}</p>
+                            <h3 className="mt-1 text-lg font-semibold text-foreground truncate">{site.name}</h3>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap ${STATUS_STYLES[site.status]}`}>
+                            {STATUS_LABEL[site.status]}
+                          </span>
+                        </div>
+                        <div className="mt-4 text-xs text-muted-foreground">
+                          <p>Size: {(site.size_bytes / 1024 / 1024).toFixed(1)} MB</p>
+                          <p>Uploaded: {new Date(site.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                          <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
+                            Manage
+                          </button>
+                          <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
+                            Details
+                          </button>
+                          {site.status === "failed" && (
+                            <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
+                              Retry
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
 
-      <SiteUploadDialog
-        open={uploadOpen}
-        onOpenChange={setUploadOpen}
-        onUploaded={refetchSites}
-      />
+              {/* Upload Center */}
+              <div className="rounded-3xl border border-border bg-card/70 p-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Upload Center</h2>
+                  <button
+                    type="button"
+                    onClick={() => setUploadOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload
+                  </button>
+                </div>
+                <div className="mt-5 rounded-2xl border border-dashed border-yellow-400/40 bg-background/50 p-5 text-center">
+                  <p className="text-sm font-semibold">Drop your .zip site here</p>
+                  <p className="mt-2 text-xs text-muted-foreground">We will deploy it fresh and crispy.</p>
+                  <button
+                    type="button"
+                    onClick={() => setUploadOpen(true)}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-yellow-500/90 px-4 py-2 text-xs font-semibold text-black hover:bg-yellow-400 transition"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Choose File
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* Plan Section */}
+            <section id="plan" className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-3 scroll-mt-28">
+              <div className="lg:col-span-2 rounded-3xl border border-border bg-card/70 p-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Upgrade Plans</h2>
+                  <span className="text-xs text-muted-foreground">Brie-style pricing</span>
+                </div>
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  {(Object.entries(PLANS) as [PlanId, typeof PLANS[keyof typeof PLANS]][]).map(([planId, plan]) => {
+                    const isActive = profile?.plan === planId;
+                    return (
+                      <div
+                        key={planId}
+                        className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:shadow-lg ${
+                          isActive
+                            ? "border-yellow-400/70 bg-yellow-500/10"
+                            : plan.popular
+                              ? "border-primary/70 bg-primary/10"
+                              : "border-border bg-background/60"
+                        }`}
+                      >
+                        <div className="text-center mb-3">
+                          <p className="text-2xl mb-1">{plan.meme}</p>
+                          <p className="text-sm text-muted-foreground">{plan.name}</p>
+                        </div>
+                        <p className="text-center text-2xl font-semibold text-foreground">
+                          {plan.price}
+                          <span className="text-xs text-muted-foreground">/mo</span>
+                        </p>
+                        <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                          {plan.features.slice(0, 3).map((feature) => (
+                            <li key={feature} className="truncate">{feature}</li>
+                          ))}
+                        </ul>
+                        <button
+                          onClick={() => handleSelectPlan(planId)}
+                          disabled={isActive || changingPlan || profile?.plan === "admin"}
+                          className={`mt-4 w-full rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                            isActive
+                              ? "bg-emerald-500/20 text-emerald-200 border border-emerald-400/40"
+                              : plan.popular
+                                ? "bg-yellow-500/90 text-black hover:bg-yellow-400"
+                                : "border border-border text-muted-foreground hover:text-foreground hover:border-yellow-400/70"
+                          }`}
+                        >
+                          {isActive ? "Current plan ✓" : changingPlan ? "Updating..." : "Choose plan"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Current Plan Card */}
+              <div id="billing" className="rounded-3xl border border-border bg-card/70 p-6 scroll-mt-28">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Current Plan</h2>
+                  <button className="text-xs text-yellow-300 hover:text-yellow-200 transition">Manage</button>
+                </div>
+                {currentPlan ? (
+                  <div className="mt-5 rounded-2xl border border-border bg-background/60 p-5">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Active plan</p>
+                      <p className="text-2xl font-semibold">{currentPlan.name}</p>
+                    </div>
+                    <div className="mt-3 text-right">
+                      <p className="text-sm text-muted-foreground">{currentPlan.price}/month</p>
+                      <p className="text-xs text-yellow-300">Billing active</p>
+                    </div>
+                    <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                      {currentPlan.features.slice(0, 4).map((feature) => (
+                        <div key={feature} className="flex items-center gap-2">
+                          <Check className="h-3 w-3 text-accent" />
+                          {feature}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-2xl border border-border bg-background/60 p-5 text-xs text-muted-foreground text-center">
+                    No plan selected. Choose one from the plans above.
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Analytics Section */}
+            <section id="analytics" className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-3 scroll-mt-28">
+              <div className="lg:col-span-2 rounded-3xl border border-border bg-card/70 p-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Activity & Stats</h2>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <LineChart className="h-4 w-4" />
+                    Live data
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-background/60 p-4">
+                    <p className="text-sm text-muted-foreground">Total Sites</p>
+                    <p className="mt-3 text-2xl font-semibold">{sites.length}</p>
+                    <p className="text-xs text-muted-foreground mt-2">Uploaded</p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-background/60 p-4">
+                    <p className="text-sm text-muted-foreground">Live Sites</p>
+                    <p className="mt-3 text-2xl font-semibold">{liveSitesCount}</p>
+                    <p className="text-xs text-emerald-300 mt-2">Running</p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-background/60 p-4">
+                    <p className="text-sm text-muted-foreground">Provisioning</p>
+                    <p className="mt-3 text-2xl font-semibold">{sites.filter((s) => s.status === "provisioning").length}</p>
+                    <p className="text-xs text-yellow-300 mt-2">In progress</p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-background/60 p-4">
+                    <p className="text-sm text-muted-foreground">Failed</p>
+                    <p className="mt-3 text-2xl font-semibold">{sites.filter((s) => s.status === "failed").length}</p>
+                    <p className="text-xs text-destructive mt-2">Attention needed</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Support Card */}
+              <div id="support" className="rounded-3xl border border-border bg-card/70 p-6 scroll-mt-28">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Support</h2>
+                  <span className="text-xs text-muted-foreground">We're here</span>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    { label: "Documentation", icon: FileText },
+                    { label: "Support Ticket", icon: MessageSquare },
+                    { label: "Live Chat", icon: Activity },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      className="w-full rounded-2xl border border-border bg-background/60 p-3 text-left text-xs transition hover:border-yellow-400/70 flex items-center gap-2"
+                    >
+                      <item.icon className="h-4 w-4 text-yellow-300 shrink-0" />
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+          </main>
+        </div>
+      </div>
+
+      {/* Plan Change Confirmation Dialog */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="border border-border bg-card/95 shadow-2xl shadow-black/40">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl text-foreground">
+              Switch to {pendingPlan?.name ?? "this plan"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
+              You are about to move to {pendingPlan?.name ?? "the selected plan"} for {pendingPlan?.price ?? ""}/mo. Your plan updates
+              instantly.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="rounded-2xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
+            <p className="font-semibold text-foreground mb-2">What you get</p>
+            <ul className="space-y-1">
+              {(pendingPlan?.features ?? []).slice(0, 5).map((feature) => (
+                <li key={feature} className="text-xs flex items-center gap-2">
+                  <Check className="h-3 w-3 text-accent" />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border bg-transparent text-muted-foreground hover:text-foreground">
+              Keep current plan
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmPlan}
+              disabled={changingPlan}
+              className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50"
+            >
+              {changingPlan ? "Updating..." : "Confirm switch"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Upload Dialog */}
+      <SiteUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} onUploaded={refetchSites} />
     </div>
   );
 }
