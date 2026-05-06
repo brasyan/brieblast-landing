@@ -54,6 +54,9 @@ const STATUS_LABEL: Record<SiteStatus, string> = {
   failed: "Failed",
 };
 
+const PUBLIC_DOMAIN = "briehosting.be";
+const FAILED_HIDE_AFTER_HOURS = 24;
+
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading, updatePlan } = useProfile();
@@ -64,6 +67,7 @@ export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("overview");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingPlanId, setPendingPlanId] = useState<PlanId | null>(null);
+  const [showAllSites, setShowAllSites] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -96,6 +100,17 @@ export default function DashboardPage() {
   const pendingPlan = pendingPlanId ? PLANS[pendingPlanId] : null;
 
   const liveSitesCount = sites.filter((site) => site.status === "live").length;
+
+  // Hide stale `failed` rows by default — they pile up from aborted uploads
+  // and clutter the list. The toggle reveals them again on demand.
+  const cutoffMs = Date.now() - FAILED_HIDE_AFTER_HOURS * 60 * 60 * 1000;
+  const visibleSites = showAllSites
+    ? sites
+    : sites.filter((site) => {
+        if (site.status !== "failed") return true;
+        return new Date(site.created_at).getTime() >= cutoffMs;
+      });
+  const hiddenCount = sites.length - visibleSites.length;
 
   useEffect(() => {
     const sectionIds = ["overview", "projects", "upload", "plan", "analytics", "billing", "support", "settings"];
@@ -413,57 +428,95 @@ export default function DashboardPage() {
               <div id="upload" className="rounded-3xl border border-border bg-card/70 p-6 scroll-mt-28">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold">Your Sites</h2>
-                  <button
-                    onClick={() => setUploadOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
-                  >
-                    <Plus className="h-4 w-4" />
-                    New Site
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {hiddenCount > 0 && !showAllSites && (
+                      <button
+                        onClick={() => setShowAllSites(true)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                      >
+                        Show {hiddenCount} hidden
+                      </button>
+                    )}
+                    {showAllSites && (
+                      <button
+                        onClick={() => setShowAllSites(false)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                      >
+                        Hide stale failures
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setUploadOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                    >
+                      <Plus className="h-4 w-4" />
+                      New Site
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-5 space-y-3">
                   {sitesLoading ? (
                     <div className="rounded-2xl border border-border bg-background/60 p-6 text-sm text-muted-foreground animate-pulse">
                       Loading your sites...
                     </div>
-                  ) : sites.length === 0 ? (
+                  ) : visibleSites.length === 0 ? (
                     <div className="rounded-2xl border border-border bg-background/60 p-6 text-sm text-muted-foreground">
-                      No sites yet. Upload your first site to get started.
+                      {sites.length === 0
+                        ? "No sites yet. Upload your first site to get started."
+                        : `All ${hiddenCount} site${hiddenCount === 1 ? "" : "s"} are stale failures (hidden). Use "Show ${hiddenCount} hidden" to view them.`}
                     </div>
                   ) : (
-                    sites.map((site) => (
-                      <div
-                        key={site.id}
-                        className="rounded-2xl border border-border bg-background/60 p-5 transition hover:border-yellow-400/50 hover:shadow-lg hover:shadow-black/15"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm text-muted-foreground truncate">{site.original_filename}</p>
-                            <h3 className="mt-1 text-lg font-semibold text-foreground truncate">{site.name}</h3>
+                    visibleSites.map((site) => {
+                      const publicUrl = site.subdomain
+                        ? `https://${site.subdomain}.${PUBLIC_DOMAIN}`
+                        : null;
+                      return (
+                        <div
+                          key={site.id}
+                          className="rounded-2xl border border-border bg-background/60 p-5 transition hover:border-yellow-400/50 hover:shadow-lg hover:shadow-black/15"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm text-muted-foreground truncate">{site.original_filename}</p>
+                              <h3 className="mt-1 text-lg font-semibold text-foreground truncate">{site.name}</h3>
+                              {publicUrl ? (
+                                <a
+                                  href={publicUrl}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                  className="mt-1 inline-flex items-center gap-1 text-xs text-yellow-300 hover:text-yellow-200 transition truncate"
+                                >
+                                  <Globe className="h-3 w-3 shrink-0" />
+                                  <span className="truncate">{site.subdomain}.{PUBLIC_DOMAIN}</span>
+                                </a>
+                              ) : site.status === "live" ? (
+                                <p className="mt-1 text-xs text-muted-foreground">URL pending…</p>
+                              ) : null}
+                            </div>
+                            <span className={`text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap ${STATUS_STYLES[site.status]}`}>
+                              {STATUS_LABEL[site.status]}
+                            </span>
                           </div>
-                          <span className={`text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap ${STATUS_STYLES[site.status]}`}>
-                            {STATUS_LABEL[site.status]}
-                          </span>
-                        </div>
-                        <div className="mt-4 text-xs text-muted-foreground">
-                          <p>Size: {(site.size_bytes / 1024 / 1024).toFixed(1)} MB</p>
-                          <p>Uploaded: {new Date(site.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                          <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
-                            Manage
-                          </button>
-                          <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
-                            Details
-                          </button>
-                          {site.status === "failed" && (
+                          <div className="mt-4 text-xs text-muted-foreground">
+                            <p>Size: {(site.size_bytes / 1024 / 1024).toFixed(1)} MB</p>
+                            <p>Uploaded: {new Date(site.created_at).toLocaleDateString()}</p>
+                          </div>
+                          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
                             <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
-                              Retry
+                              Manage
                             </button>
-                          )}
+                            <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
+                              Details
+                            </button>
+                            {site.status === "failed" && (
+                              <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
+                                Retry
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
