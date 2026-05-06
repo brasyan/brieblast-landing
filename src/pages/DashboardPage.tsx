@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { useProfile } from "@/hooks/useProfile";
 import { useSites, type SiteStatus } from "@/hooks/useSites";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { ADMIN_PLAN, PLANS, type CustomerPlanId, type PlanId } from "@/lib/plans";
 import { Check, Upload } from "lucide-react";
 import { useState } from "react";
 import SiteUploadDialog from "@/components/SiteUploadDialog";
@@ -40,7 +40,12 @@ export default function DashboardPage() {
     setChangingPlan(false);
   };
 
-  const currentPlan = profile?.plan && profile.plan !== "none" ? PLANS[profile.plan as Exclude<PlanId, "none">] : null;
+  const currentPlan =
+    profile?.plan === "admin"
+      ? ADMIN_PLAN
+      : profile?.plan && profile.plan !== "none"
+        ? PLANS[profile.plan as CustomerPlanId]
+        : null;
 
   if (sitesError) {
     return (
@@ -79,6 +84,19 @@ export default function DashboardPage() {
             <span className="text-foreground">Hosting</span>
           </span>
           <div className="flex items-center gap-4">
+            {profile?.plan === "admin" && (
+              <>
+                <span className="hidden sm:inline-flex items-center rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  Admin
+                </span>
+                <Link
+                  to="/admin"
+                  className="px-4 py-2 rounded-lg border border-primary/40 bg-primary/10 text-sm text-primary hover:bg-primary/20 transition-colors"
+                >
+                  Admin Dashboard
+                </Link>
+              </>
+            )}
             <span className="text-sm text-muted-foreground hidden sm:block">
               {user?.email}
             </span>
@@ -150,8 +168,13 @@ export default function DashboardPage() {
           <h2 className="text-xl font-bold text-foreground mb-4">
             {currentPlan ? "Change Plan" : "Choose a Plan"}
           </h2>
+          {profile?.plan === "admin" && (
+            <div className="mb-4 rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
+              Admin account detected. Billing plan changes are disabled here.
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {(Object.entries(PLANS) as [Exclude<PlanId, "none">, typeof PLANS[keyof typeof PLANS]][]).map(([planId, plan]) => {
+            {(Object.entries(PLANS) as [CustomerPlanId, typeof PLANS[keyof typeof PLANS]][]).map(([planId, plan]) => {
               const isActive = profile?.plan === planId;
               return (
                 <div
@@ -186,7 +209,7 @@ export default function DashboardPage() {
                   </ul>
                   <button
                     onClick={() => handleSelectPlan(planId)}
-                    disabled={isActive || changingPlan}
+                    disabled={isActive || changingPlan || profile?.plan === "admin"}
                     className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 ${
                       isActive
                         ? "bg-accent text-accent-foreground"
