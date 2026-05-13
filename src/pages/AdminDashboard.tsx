@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 const PLAN_OPTIONS: PlanId[] = ["none", "smol_brie", "thicc_brie", "mega_brie", "admin"];
 
@@ -55,6 +56,7 @@ const AdminDashboard = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<PlanId | "">("");
   const [savingPlan, setSavingPlan] = useState(false);
+  const [selectedSecurityAlertId, setSelectedSecurityAlertId] = useState<string | null>(null);
 
   const handleLogout = async () => {
     await signOut();
@@ -62,6 +64,7 @@ const AdminDashboard = () => {
   };
 
   const selectedUser = users.find((user) => user.id === selectedUserId) ?? null;
+  const selectedSecurityAlert = securityAlerts.find((alert) => alert.id === selectedSecurityAlertId) ?? null;
 
   const totalUsers = users.length;
   const totalStorage = totalStorageBytes;
@@ -85,6 +88,10 @@ const AdminDashboard = () => {
   const openUserDialog = (userId: string, plan: PlanId) => {
     setSelectedUserId(userId);
     setSelectedPlan(plan);
+  };
+
+  const openSecurityAlert = (alertId: string) => {
+    setSelectedSecurityAlertId(alertId);
   };
 
   const handleSavePlan = async () => {
@@ -482,22 +489,32 @@ const AdminDashboard = () => {
                       return (
                         <div
                           key={alert.id}
-                          className={`rounded-md border p-4 ${
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openSecurityAlert(alert.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openSecurityAlert(alert.id);
+                            }
+                          }}
+                          className={`cursor-pointer rounded-md border p-4 transition hover:border-primary/50 hover:bg-muted/40 ${
                             isScanFailure ? "border-destructive/40 bg-destructive/5" : "border-yellow-500/30 bg-yellow-500/5"
                           }`}
                         >
                           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${
+                                <Badge
+                                  variant="outline"
+                                  className={`px-2 py-1 text-xs font-semibold ${
                                     isScanFailure
-                                      ? "bg-destructive/15 text-destructive"
-                                      : "bg-yellow-500/15 text-yellow-600"
+                                      ? "border-destructive/40 bg-destructive/15 text-destructive"
+                                      : "border-yellow-500/30 bg-yellow-500/15 text-yellow-600"
                                   }`}
                                 >
                                   {alert.status.replace(/_/g, " ")}
-                                </span>
+                                </Badge>
                                 <span className="text-sm font-semibold text-foreground">{alert.site_name}</span>
                               </div>
                               <p className="text-sm text-muted-foreground">
@@ -593,6 +610,54 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      <Dialog open={selectedSecurityAlert !== null} onOpenChange={(open) => !open && setSelectedSecurityAlertId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Security Alert</DialogTitle>
+            <DialogDescription>
+              Details for the selected upload failure or scan failure.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedSecurityAlert && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Site</p>
+                  <p className="text-sm font-medium text-foreground">{selectedSecurityAlert.site_name}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+                  <p className="text-sm font-medium text-foreground">{selectedSecurityAlert.status.replace(/_/g, " ")}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Uploaded by</p>
+                  <p className="text-sm font-medium text-foreground">{selectedSecurityAlert.uploader_name}</p>
+                  {selectedSecurityAlert.uploader_email && (
+                    <p className="text-xs text-muted-foreground">{selectedSecurityAlert.uploader_email}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Reason</p>
+                  <p className="text-sm font-medium text-foreground">{selectedSecurityAlert.reason}</p>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                <p>Created {formatDistanceToNow(new Date(selectedSecurityAlert.created_at), { addSuffix: true })}</p>
+                <p>Updated {formatDistanceToNow(new Date(selectedSecurityAlert.updated_at), { addSuffix: true })}</p>
+              </div>
+
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                {selectedSecurityAlert.status === "scan_failed"
+                  ? "Security verification failed for this upload. The website could not be verified as safe."
+                  : "Upload failed and requires review."}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
