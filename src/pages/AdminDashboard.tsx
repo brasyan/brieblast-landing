@@ -44,6 +44,7 @@ const AdminDashboard = () => {
     users,
     sites,
     activity,
+    securityAlerts,
     loading,
     error,
     statusCounts,
@@ -197,6 +198,7 @@ const AdminDashboard = () => {
         <Tabs defaultValue="clients" className="space-y-4">
           <TabsList>
             <TabsTrigger value="clients">Clients</TabsTrigger>
+            <TabsTrigger value="security">Security Alerts</TabsTrigger>
             <TabsTrigger value="activity">Activity Logs</TabsTrigger>
             <TabsTrigger value="resources">Proxmox Resources</TabsTrigger>
           </TabsList>
@@ -446,6 +448,69 @@ const AdminDashboard = () => {
                               <div className="text-xs text-muted-foreground">
                                 {formatDistanceToNow(new Date(event.timestamp), { addSuffix: true })}
                               </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="security">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-destructive" />
+                  Security Alerts
+                </CardTitle>
+                <CardDescription>
+                  Upload failures and security scan failures with uploader context and failure reasons
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {securityAlerts.length === 0 ? (
+                  <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                    No security alerts right now.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {securityAlerts.map((alert) => {
+                      const isScanFailure = alert.status === "scan_failed";
+                      return (
+                        <div
+                          key={alert.id}
+                          className={`rounded-md border p-4 ${
+                            isScanFailure ? "border-destructive/40 bg-destructive/5" : "border-yellow-500/30 bg-yellow-500/5"
+                          }`}
+                        >
+                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${
+                                    isScanFailure
+                                      ? "bg-destructive/15 text-destructive"
+                                      : "bg-yellow-500/15 text-yellow-600"
+                                  }`}
+                                >
+                                  {alert.status.replace(/_/g, " ")}
+                                </span>
+                                <span className="text-sm font-semibold text-foreground">{alert.site_name}</span>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                Uploaded by <span className="text-foreground font-medium">{alert.uploader_name}</span>
+                                {alert.uploader_email ? <span> ({alert.uploader_email})</span> : null}
+                              </p>
+                              <p className="text-sm">
+                                <span className="font-medium text-foreground">Reason:</span> {alert.reason}
+                              </p>
+                            </div>
+                            <div className="text-xs text-muted-foreground md:text-right">
+                              <p>Created {formatDistanceToNow(new Date(alert.created_at), { addSuffix: true })}</p>
+                              <p>Updated {formatDistanceToNow(new Date(alert.updated_at), { addSuffix: true })}</p>
                             </div>
                           </div>
                         </div>

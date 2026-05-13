@@ -35,6 +35,18 @@ export interface AdminActivityEvent {
   timestamp: string;
 }
 
+export interface AdminSecurityAlert {
+  id: string;
+  site_id: string;
+  site_name: string;
+  uploader_name: string;
+  uploader_email: string | null;
+  status: SiteStatus;
+  reason: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface SiteRow {
   id: string;
   user_id: string;
@@ -118,10 +130,34 @@ function buildActivity(profiles: ProfileRow[], sites: SiteRow[]) {
     .slice(0, 100);
 }
 
+function buildSecurityAlerts(profiles: ProfileRow[], sites: SiteRow[]) {
+  return sites
+    .filter((site) => site.status === "failed" || site.status === "scan_failed")
+    .map((site) => {
+      const siteProfile = profiles.find((profile) => profile.id === site.user_id);
+      const uploaderName = siteProfile ? getUserLabel(siteProfile) : `user-${site.user_id.slice(0, 8)}`;
+      const reason = site.error_message || (site.status === "scan_failed" ? "Security scan failed" : "Upload failed");
+
+      return {
+        id: `security-alert-${site.id}`,
+        site_id: site.id,
+        site_name: site.name,
+        uploader_name: uploaderName,
+        uploader_email: siteProfile?.email ?? null,
+        status: site.status,
+        reason,
+        created_at: site.created_at,
+        updated_at: site.updated_at,
+      } satisfies AdminSecurityAlert;
+    })
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+}
+
 export function useAllUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [sites, setSites] = useState<AdminSite[]>([]);
   const [activity, setActivity] = useState<AdminActivityEvent[]>([]);
+  const [securityAlerts, setSecurityAlerts] = useState<AdminSecurityAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -168,6 +204,7 @@ export function useAllUsers() {
       setUsers(combinedUsers);
       setSites(siteRows);
       setActivity(buildActivity(profileRows, siteRows));
+      setSecurityAlerts(buildSecurityAlerts(profileRows, siteRows));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch users");
     } finally {
@@ -205,6 +242,7 @@ export function useAllUsers() {
     users,
     sites,
     activity,
+    securityAlerts,
     loading,
     error,
     statusCounts,
