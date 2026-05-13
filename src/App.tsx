@@ -31,7 +31,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
+          <div className="w-full min-h-screen bg-background">
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/features" element={<Features />} />
             <Route path="/status" element={<Status />} />
@@ -68,7 +69,8 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/responsible-disclosure" element={<ResponsibleDisclosurePage />} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </div>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

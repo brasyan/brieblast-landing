@@ -56,7 +56,7 @@ interface ProfileRow {
   updated_at: string;
 }
 
-const SITE_STATUSES: SiteStatus[] = ["live", "provisioning", "uploaded", "failed"];
+const SITE_STATUSES: SiteStatus[] = ["live", "provisioning", "uploaded", "failed", "scan_failed"];
 
 function getUserLabel(profile: ProfileRow) {
   return profile.display_name || profile.email || `user-${profile.id.slice(0, 8)}`;
@@ -102,10 +102,10 @@ function buildActivity(profiles: ProfileRow[], sites: SiteRow[]) {
     if (site.updated_at !== site.created_at) {
       events.push({
         id: `site-updated-${site.id}-${site.updated_at}`,
-        kind: site.status === "failed" ? "site_failed" : "site_updated",
+        kind: site.status === "failed" || site.status === "scan_failed" ? "site_failed" : "site_updated",
         actor,
         summary:
-          site.status === "failed"
+          site.status === "failed" || site.status === "scan_failed"
             ? `Site deployment failed: ${site.name}${site.error_message ? ` — ${site.error_message}` : ""}`
             : `Site status changed: ${site.name} → ${site.status}`,
         timestamp: site.updated_at,

@@ -70,15 +70,25 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
       onUploaded();
       resetAndClose();
     } catch (e) {
-      if (e instanceof BriehostApiError && e.reason === "scan_failed") {
-        setScanFailedOpen(true);
+      console.error("Upload error:", e);
+      if (e instanceof BriehostApiError) {
+        console.log("Error reason:", e.reason);
+        if (e.reason === "scan_failed") {
+          setScanFailedOpen(true);
+          setUploading(false);
+          onOpenChange(false); // Close upload dialog so alert is visible
+        } else {
+          setServerError(e.message);
+          setUploading(false);
+        }
       } else {
-        const msg = e instanceof BriehostApiError ? e.message : "Upload failed";
-        setServerError(msg);
+        setServerError("Upload failed");
+        setUploading(false);
       }
-      setUploading(false);
     }
   };
+
+  const fileReg = register("file");
 
   return (
     <>
@@ -136,7 +146,7 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
       </Dialog>
 
       <AlertDialog open={scanFailedOpen} onOpenChange={setScanFailedOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent onEscapeKeyDown={(e) => e.preventDefault()}>
           <AlertDialogHeader>
             <AlertDialogTitle>Scan Failed</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">

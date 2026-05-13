@@ -487,13 +487,13 @@ const AdminDashboard = () => {
                     <div className="rounded-md border border-border p-4">
                       <h3 className="font-semibold mb-2">Site Status Distribution</h3>
                       <div className="space-y-3">
-                        {(["live", "provisioning", "uploaded", "failed"] as const).map((status) => {
+                        {(["live", "provisioning", "uploaded", "failed", "scan_failed"] as const).map((status) => {
                           const count = statusCounts[status] || 0;
                           const percentage = sites.length > 0 ? (count / sites.length) * 100 : 0;
                           return (
                             <div key={status}>
                               <div className="flex items-center justify-between text-sm mb-1">
-                                <span className="capitalize">{status}</span>
+                                <span className="capitalize">{status.replace(/_/g, " ")}</span>
                                 <span className="text-muted-foreground">{count}</span>
                               </div>
                               <Progress value={percentage} />
