@@ -51,7 +51,7 @@ import {
 } from "@/components/ui/dialog";
 import SiteUploadDialog from "@/components/SiteUploadDialog";
 
-const PUBLIC_DOMAIN = import.meta.env.VITE_PUBLIC_DOMAIN || "brie.host";
+const PUBLIC_DOMAIN = import.meta.env.VITE_PUBLIC_DOMAIN || "briehosting.be";
 
 const STATUS_STYLES: Record<SiteStatus, string> = {
   uploaded: "bg-muted text-muted-foreground border border-muted",
