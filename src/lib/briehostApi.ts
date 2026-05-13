@@ -17,7 +17,7 @@ if (!BASE_URL) {
 
 export interface UploadResult {
   siteId: string;
-  status: "uploaded" | "provisioning" | "live" | "failed";
+  status: "uploaded" | "provisioning" | "live" | "failed" | "scan_failed";
   reason?: string;
 }
 
@@ -64,8 +64,9 @@ export async function uploadSite(
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const result = JSON.parse(xhr.responseText) as UploadResult;
-          // If the upload resulted in a failed status with scan_failed reason, treat it as an error
-          if (result.status === "failed" && result.reason === "scan_failed") {
+          if (result.status === "scan_failed") {
+            reject(new BriehostApiError("Scan failed", xhr.status, "scan_failed"));
+          } else if (result.status === "failed" && result.reason === "scan_failed") {
             reject(new BriehostApiError("Scan failed", xhr.status, "scan_failed"));
           } else {
             resolve(result);

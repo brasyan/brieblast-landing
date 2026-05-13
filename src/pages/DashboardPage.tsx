@@ -47,6 +47,7 @@ const STATUS_STYLES: Record<SiteStatus, string> = {
   provisioning: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
   live: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
   failed: "bg-destructive/20 text-destructive border border-destructive/30",
+  scan_failed: "bg-destructive/20 text-destructive border border-destructive/30",
 };
 
 const STATUS_LABEL: Record<SiteStatus, string> = {
@@ -54,6 +55,7 @@ const STATUS_LABEL: Record<SiteStatus, string> = {
   provisioning: "Provisioning…",
   live: "Live",
   failed: "Failed",
+  scan_failed: "Scan Failed",
 };
 
 export default function DashboardPage() {
@@ -620,7 +622,7 @@ export default function DashboardPage() {
                           <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
                             Details
                           </button>
-                          {site.status === "failed" && (
+                          {(site.status === "failed" || site.status === "scan_failed") && (
                             <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
                               Retry
                             </button>
@@ -781,7 +783,9 @@ export default function DashboardPage() {
                   </div>
                   <div className="rounded-2xl border border-border bg-background/60 p-4">
                     <p className="text-sm text-muted-foreground">Failed</p>
-                    <p className="mt-3 text-2xl font-semibold">{sites.filter((s) => s.status === "failed").length}</p>
+                    <p className="mt-3 text-2xl font-semibold">
+                      {sites.filter((s) => s.status === "failed" || s.status === "scan_failed").length}
+                    </p>
                     <p className="text-xs text-destructive mt-2">Attention needed</p>
                   </div>
                 </div>

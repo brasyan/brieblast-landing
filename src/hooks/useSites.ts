@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type SiteStatus = "uploaded" | "provisioning" | "live" | "failed";
+export type SiteStatus = "uploaded" | "provisioning" | "live" | "failed" | "scan_failed";
 
 export interface Site {
   id: string;
