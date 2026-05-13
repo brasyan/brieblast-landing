@@ -2,6 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { useProfile } from "@/hooks/useProfile";
 import { useSites, type SiteStatus } from "@/hooks/useSites";
+import { useToast } from "@/hooks/use-toast";
 import { ADMIN_PLAN, PLANS, type CustomerPlanId, type PlanId } from "@/lib/plans";
 import { supabase } from "@/lib/supabase";
 import {
@@ -61,6 +62,7 @@ export default function DashboardPage() {
   const { profile, loading: profileLoading, updatePlan } = useProfile();
   const { sites, loading: sitesLoading, error: sitesError, refetch: refetchSites } = useSites();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [changingPlan, setChangingPlan] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
@@ -113,14 +115,25 @@ export default function DashboardPage() {
           .eq("id", siteToDelete);
 
         if (error) {
+          console.error("Delete error details:", error);
+          toast({
+            title: "Delete Failed",
+            description: error.message || "Failed to delete site. Please check the console for details.",
+            variant: "destructive",
+          });
           throw error;
         }
 
         // Refresh the sites list to show the deletion
         await refetchSites();
+        
+        toast({
+          title: "Site Deleted",
+          description: "Your site has been successfully removed.",
+          variant: "default",
+        });
       } catch (error) {
         console.error("Failed to delete site:", error);
-        // You could add a toast notification here to show the error to the user
       } finally {
         setDeletingId(null);
         setDeleteConfirmOpen(false);
