@@ -12,6 +12,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -28,6 +36,7 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [scanFailedOpen, setScanFailedOpen] = useState(false);
 
   const {
     register,
@@ -61,8 +70,12 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
       onUploaded();
       resetAndClose();
     } catch (e) {
-      const msg = e instanceof BriehostApiError ? e.message : "Upload failed";
-      setServerError(msg);
+      if (e instanceof BriehostApiError && e.reason === "scan_failed") {
+        setScanFailedOpen(true);
+      } else {
+        const msg = e instanceof BriehostApiError ? e.message : "Upload failed";
+        setServerError(msg);
+      }
       setUploading(false);
     }
   };
@@ -70,57 +83,81 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
   const fileReg = register("file");
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o || uploading ? onOpenChange(true) : close())}>
-      <DialogContent
-        className="sm:max-w-md"
-        onEscapeKeyDown={(event) => {
-          if (uploading) event.preventDefault();
-        }}
-        onInteractOutside={(event) => {
-          if (uploading) event.preventDefault();
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle>Upload a site</DialogTitle>
-          <DialogDescription>
-            Upload a .zip of your PHP site (max 100 MB). It will be deployed to a fresh container.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={(o) => (o || uploading ? onOpenChange(true) : close())}>
+        <DialogContent
+          className="sm:max-w-md"
+          onEscapeKeyDown={(event) => {
+            if (uploading) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (uploading) event.preventDefault();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Upload a site</DialogTitle>
+            <DialogDescription>
+              Upload a .zip of your PHP site (max 100 MB). It will be deployed to a fresh container.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="site-zip">Zip file</Label>
-            <Input
-              id="site-zip"
-              type="file"
-              accept=".zip,application/zip"
-              disabled={uploading}
-              {...fileReg}
-            />
-            {errors.file && (
-              <p className="text-sm text-destructive">{errors.file.message as string}</p>
-            )}
-          </div>
-
-          {uploading && (
-            <div className="space-y-1">
-              <Progress value={progress} />
-              <p className="text-xs text-muted-foreground">{progress}%</p>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="site-zip">Zip file</Label>
+              <Input
+                id="site-zip"
+                type="file"
+                accept=".zip,application/zip"
+                disabled={uploading}
+                {...fileReg}
+              />
+              {errors.file && (
+                <p className="text-sm text-destructive">{errors.file.message as string}</p>
+              )}
             </div>
-          )}
 
-          {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+            {uploading && (
+              <div className="space-y-1">
+                <Progress value={progress} />
+                <p className="text-xs text-muted-foreground">{progress}%</p>
+              </div>
+            )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={uploading}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={uploading}>
-              {uploading ? "Uploading…" : "Upload"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={close} disabled={uploading}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={uploading}>
+                {uploading ? "Uploading…" : "Upload"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={scanFailedOpen} onOpenChange={setScanFailedOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Scan Failed</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                We were unable to verify the security of your website. This could indicate potential security issues or violations of our security policies.
+              </p>
+              <p>
+                Please contact <span className="font-semibold text-foreground">info@briehosting.be</span> to discuss this issue and ensure your website meets our security requirements.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Our security team will be happy to assist you in resolving this matter.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogAction onClick={() => setScanFailedOpen(false)}>
+            Understood
+          </AlertDialogAction>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

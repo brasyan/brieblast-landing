@@ -21,7 +21,11 @@ export interface UploadResult {
 }
 
 export class BriehostApiError extends Error {
-  constructor(message: string, public status: number) {
+  constructor(
+    message: string,
+    public status: number,
+    public reason?: string,
+  ) {
     super(message);
     this.name = "BriehostApiError";
   }
@@ -64,12 +68,15 @@ export async function uploadSite(
         }
       } else {
         let detail = xhr.responseText;
+        let reason: string | undefined;
         try {
-          detail = JSON.parse(xhr.responseText).detail ?? detail;
+          const parsed = JSON.parse(xhr.responseText);
+          detail = parsed.detail ?? detail;
+          reason = parsed.reason;
         } catch {
           // keep raw text
         }
-        reject(new BriehostApiError(detail || `Upload failed (${xhr.status})`, xhr.status));
+        reject(new BriehostApiError(detail || `Upload failed (${xhr.status})`, xhr.status, reason));
       }
     };
 

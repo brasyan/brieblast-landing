@@ -15,6 +15,11 @@ export interface Site {
   error_message: string | null;
   created_at: string;
   updated_at: string;
+  // Populated by the API worker once the site is live. Optional because the
+  // columns are added by sql/004 in briehost-api and may not exist yet.
+  subdomain?: string | null;
+  ip_address?: string | null;
+  vmid?: number | null;
 }
 
 export function useSites() {
