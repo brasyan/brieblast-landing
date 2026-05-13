@@ -29,25 +29,97 @@ import {
   Wifi,
 } from "lucide-react";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
+  const [scanFailedSiteId, setScanFailedSiteId] = useState<string | null>(null);
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import SiteUploadDialog from "@/components/SiteUploadDialog";
+  const selectedScanFailedSite = sites.find((site) => site.id === scanFailedSiteId) ?? null;
 
-const STATUS_STYLES: Record<SiteStatus, string> = {
-  uploaded: "bg-muted text-muted-foreground border border-muted",
-  provisioning: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
+  const openScanFailedDialog = (siteId: string) => {
+    setScanFailedSiteId(siteId);
+  };
+
+  const closeScanFailedDialog = () => {
+    setScanFailedSiteId(null);
+  };
+
+                          {site.status === "scan_failed" ? (
+                            <button
+                              type="button"
+                              onClick={() => openScanFailedDialog(site.id)}
+                              className={`text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap transition hover:scale-[1.02] hover:shadow-md ${STATUS_STYLES[site.status]}`}
+                            >
+                              {STATUS_LABEL[site.status]}
+                            </button>
+                          ) : (
+                            <span className={`text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap ${STATUS_STYLES[site.status]}`}>
+                              {STATUS_LABEL[site.status]}
+                            </span>
+                          )}
   live: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
   failed: "bg-destructive/20 text-destructive border border-destructive/30",
   scan_failed: "bg-destructive/20 text-destructive border border-destructive/30",
+      <Dialog open={scanFailedSiteId !== null} onOpenChange={(open) => !open && closeScanFailedDialog()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Scan Failed</DialogTitle>
+            <DialogDescription>
+              The website security scan could not verify this upload.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedScanFailedSite && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 space-y-2">
+                <p className="text-sm font-semibold text-foreground">{selectedScanFailedSite.name}</p>
+                <p className="text-xs text-muted-foreground">{selectedScanFailedSite.original_filename}</p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
+                  <p className="font-medium text-destructive">Scan Failed</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Uploaded</p>
+                  <p className="font-medium text-foreground">{new Date(selectedScanFailedSite.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Reason</p>
+                  <p className="font-medium text-foreground">
+                    {selectedScanFailedSite.error_message || "The website security could not be verified."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground space-y-2">
+                <p>
+                  Please contact <span className="font-semibold text-foreground">info@briehosting.be</span> because the security of the website could not be verified.
+                </p>
+                <p>
+                  This upload should be reviewed before it is made available again.
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 };
 
 const STATUS_LABEL: Record<SiteStatus, string> = {
