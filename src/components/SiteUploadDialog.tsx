@@ -140,7 +140,7 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
       <AlertDialog open={scanFailedOpen} onOpenChange={setScanFailedOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Scan Failed</AlertDialogTitle>
+            <AlertDialogTitle>Scan failed</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>
                 We were unable to verify the security of your website. This could indicate potential security issues or violations of our security policies.
