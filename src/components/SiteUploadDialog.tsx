@@ -69,13 +69,13 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
       toast.success("Site uploaded — provisioning will begin shortly.");
       onUploaded();
       resetAndClose();
-    } if (e instanceof BriehostApiError && e.reason === "scan_failed") {
+    } catch (e) {
+      if (e instanceof BriehostApiError && e.reason === "scan_failed") {
         setScanFailedOpen(true);
       } else {
         const msg = e instanceof BriehostApiError ? e.message : "Upload failed";
         setServerError(msg);
-      }ceof BriehostApiError ? e.message : "Upload failed";
-      setServerError(msg);
+      }
       setUploading(false);
     }
   };
