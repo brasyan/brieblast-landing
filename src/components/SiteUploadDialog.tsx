@@ -79,7 +79,9 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
       setUploading(false);
     }
   };
->
+
+  return (
+    <>
       <Dialog open={open} onOpenChange={(o) => (o || uploading ? onOpenChange(true) : close())}>
         <DialogContent
           className="sm:max-w-md"
