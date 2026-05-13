@@ -156,10 +156,6 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
           </AlertDialogAction>
         </AlertDialogContent>
       </AlertDialog>
-    </</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }
