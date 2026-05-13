@@ -106,29 +106,21 @@ export default function DashboardPage() {
     if (siteToDelete) {
       setDeletingId(siteToDelete);
       try {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
-        
-        if (!token) {
-          throw new Error("Not authenticated");
+        // Delete directly from Supabase since that's where the data is stored
+        const { error } = await supabase
+          .from("sites")
+          .delete()
+          .eq("id", siteToDelete);
+
+        if (error) {
+          throw error;
         }
 
-        const baseUrl = import.meta.env.VITE_BRIEHOST_API_URL;
-        const response = await fetch(`${baseUrl}/api/sites/${siteToDelete}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to delete site");
-        }
-
+        // Refresh the sites list to show the deletion
         await refetchSites();
       } catch (error) {
         console.error("Failed to delete site:", error);
+        // You could add a toast notification here to show the error to the user
       } finally {
         setDeletingId(null);
         setDeleteConfirmOpen(false);
