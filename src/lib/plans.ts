@@ -10,6 +10,7 @@ export interface PlanDetails {
   description: string;
   features: string[];
   popular: boolean;
+  storage: number; // in GB
 }
 
 export const PLANS: Record<CustomerPlanId, PlanDetails> = {
@@ -28,6 +29,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
       "1 Database",
     ],
     popular: false,
+    storage: 5,
   },
   thicc_brie: {
     id: "thicc_brie",
@@ -46,6 +48,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
       "Auto Backups",
     ],
     popular: true,
+    storage: 50,
   },
   mega_brie: {
     id: "mega_brie",
@@ -65,6 +68,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
       "Free Migration",
     ],
     popular: false,
+    storage: 200,
   },
 };
 
@@ -82,4 +86,5 @@ export const ADMIN_PLAN: PlanDetails = {
     "Operational Controls",
   ],
   popular: false,
+  storage: 9999,
 };

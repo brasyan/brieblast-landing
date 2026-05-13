@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useProfile } from "@/hooks/useProfile";
 import { useSites, type SiteStatus } from "@/hooks/useSites";
 import { ADMIN_PLAN, PLANS, type CustomerPlanId, type PlanId } from "@/lib/plans";
+import { supabase } from "@/lib/supabase";
 import {
   Activity,
   BarChart3,
@@ -22,6 +23,7 @@ import {
   Settings,
   Settings2,
   ShieldCheck,
+  Trash2,
   Upload,
   Users,
   Wifi,
@@ -64,6 +66,15 @@ export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("overview");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingPlanId, setPendingPlanId] = useState<PlanId | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [siteToDelete, setSiteToDelete] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [howToOpen, setHowToOpen] = useState(false);
+  const [supportTicketOpen, setSupportTicketOpen] = useState(false);
+  const [ticketForm, setTicketForm] = useState({ email: user?.email || "", subject: "", message: "" });
+  const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "status" | "date" | "size">("date");
 
   const handleSignOut = async () => {
     await signOut();
@@ -86,6 +97,46 @@ export default function DashboardPage() {
     setPendingPlanId(null);
   };
 
+  const handleDeleteSite = (siteId: string) => {
+    setSiteToDelete(siteId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (siteToDelete) {
+      setDeletingId(siteToDelete);
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        
+        if (!token) {
+          throw new Error("Not authenticated");
+        }
+
+        const baseUrl = import.meta.env.VITE_BRIEHOST_API_URL;
+        const response = await fetch(`${baseUrl}/api/sites/${siteToDelete}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete site");
+        }
+
+        await refetchSites();
+      } catch (error) {
+        console.error("Failed to delete site:", error);
+      } finally {
+        setDeletingId(null);
+        setDeleteConfirmOpen(false);
+        setSiteToDelete(null);
+      }
+    }
+  };
+
   const currentPlan =
     profile?.plan === "admin"
       ? ADMIN_PLAN
@@ -94,8 +145,60 @@ export default function DashboardPage() {
         : null;
 
   const pendingPlan = pendingPlanId ? PLANS[pendingPlanId] : null;
-
   const liveSitesCount = sites.filter((site) => site.status === "live").length;
+
+  // Filter sites by search query
+  const filteredSites = sites.filter((site) =>
+    site.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    site.original_filename.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Sort sites
+  const sortedSites = [...filteredSites].sort((a, b) => {
+    switch (sortBy) {
+      case "name":
+        return a.name.localeCompare(b.name);
+      case "status":
+        return a.status.localeCompare(b.status);
+      case "date":
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case "size":
+        return b.size_bytes - a.size_bytes;
+      default:
+        return 0;
+    }
+  });
+
+  // Calculate storage usage
+  const totalStorageUsed = sites.reduce((sum, site) => sum + site.size_bytes, 0);
+  const totalStorageMB = totalStorageUsed / 1024 / 1024;
+  const planStorage = currentPlan?.storage || 0;
+  const storageUsagePercent = planStorage > 0 ? Math.min((totalStorageMB / planStorage) * 100, 100) : 0;
+
+  // Export CSV function
+  const exportToCSV = () => {
+    const headers = ["Site Name", "Filename", "Status", "Size (MB)", "Uploaded Date"];
+    const rows = sites.map((site) => [
+      site.name,
+      site.original_filename,
+      STATUS_LABEL[site.status],
+      (site.size_bytes / 1024 / 1024).toFixed(1),
+      new Date(site.created_at).toLocaleDateString(),
+    ]);
+
+    const csv = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `briehosting-sites-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     const sectionIds = ["overview", "projects", "upload", "plan", "analytics", "billing", "support", "settings"];
@@ -307,23 +410,25 @@ export default function DashboardPage() {
                   >
                     <span className="text-sm">→</span>
                   </button>
-                  <button
-                    onClick={() => setUploadOpen(true)}
+                  <Link
+                    to="/account-settings"
                     className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-sm text-foreground hover:border-yellow-400/70 transition"
                   >
                     <span className="h-6 w-6 rounded-full bg-yellow-500/20 flex items-center justify-center text-xs">
                       {(user?.email?.[0] || "U").toUpperCase()}
                     </span>
                     {user?.email?.split("@")[0] || "User"}
-                  </button>
+                  </Link>
                 </div>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-md">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full rounded-xl border border-border bg-card/70 py-2.5 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40"
-                    placeholder="Search sites..."
+                    placeholder="Search sites by name or filename..."
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -411,27 +516,86 @@ export default function DashboardPage() {
             {/* Projects Section */}
             <section id="projects" className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr] scroll-mt-28">
               <div id="upload" className="rounded-3xl border border-border bg-card/70 p-6 scroll-mt-28">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-lg font-semibold">Your Sites</h2>
-                  <button
-                    onClick={() => setUploadOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
-                  >
-                    <Plus className="h-4 w-4" />
-                    New Site
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      className="rounded-lg border border-border bg-background/60 px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40"
+                    >
+                      <option value="date">Sort: Newest</option>
+                      <option value="name">Sort: Name</option>
+                      <option value="status">Sort: Status</option>
+                      <option value="size">Sort: Size</option>
+                    </select>
+                    {sites.length > 0 && (
+                      <button
+                        onClick={exportToCSV}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                      >
+                        ↓ Export CSV
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setUploadOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-yellow-400/70 transition"
+                    >
+                      <Plus className="h-4 w-4" />
+                      New Site
+                    </button>
+                  </div>
                 </div>
+                {currentPlan && (
+                  <div className="mt-4 rounded-2xl border border-border bg-background/60 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground">Storage Usage</span>
+                      <span className="text-xs font-semibold text-foreground">{totalStorageMB.toFixed(1)} GB / {planStorage} GB</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted/60 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          storageUsagePercent > 80
+                            ? "bg-gradient-to-r from-red-400 to-red-500"
+                            : storageUsagePercent > 50
+                              ? "bg-gradient-to-r from-yellow-400 to-amber-300"
+                              : "bg-gradient-to-r from-yellow-400 to-amber-300"
+                        }`}
+                        style={{ width: `${storageUsagePercent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="mt-5 space-y-3">
                   {sitesLoading ? (
                     <div className="rounded-2xl border border-border bg-background/60 p-6 text-sm text-muted-foreground animate-pulse">
                       Loading your sites...
                     </div>
                   ) : sites.length === 0 ? (
-                    <div className="rounded-2xl border border-border bg-background/60 p-6 text-sm text-muted-foreground">
-                      No sites yet. Upload your first site to get started.
+                    <div className="rounded-2xl border border-border bg-background/60 p-8 text-center">
+                      <div className="text-2xl mb-2">📦</div>
+                      <p className="text-sm font-semibold text-foreground mb-1">No sites yet</p>
+                      <p className="text-xs text-muted-foreground mb-4">Upload your first .zip to get cookin'!</p>
+                      <button
+                        onClick={() => setUploadOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-lg bg-yellow-500/90 px-4 py-2 text-xs font-semibold text-black hover:bg-yellow-400 transition"
+                      >
+                        <Upload className="h-4 w-4" />
+                        Upload Site Now
+                      </button>
+                    </div>
+                  ) : searchQuery && filteredSites.length === 0 ? (
+                    <div className="rounded-2xl border border-border bg-background/60 p-6 text-center">
+                      <p className="text-sm text-muted-foreground">No sites match "{searchQuery}"</p>
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="mt-2 text-xs text-yellow-400 hover:text-yellow-300 transition"
+                      >
+                        Clear search
+                      </button>
                     </div>
                   ) : (
-                    sites.map((site) => (
+                    sortedSites.map((site) => (
                       <div
                         key={site.id}
                         className="rounded-2xl border border-border bg-background/60 p-5 transition hover:border-yellow-400/50 hover:shadow-lg hover:shadow-black/15"
@@ -461,6 +625,13 @@ export default function DashboardPage() {
                               Retry
                             </button>
                           )}
+                          <button
+                            onClick={() => handleDeleteSite(site.id)}
+                            className="rounded-full border border-destructive/40 bg-destructive/10 text-destructive px-3 py-1.5 transition hover:text-destructive hover:border-destructive/70 hover:bg-destructive/20 flex items-center gap-1.5"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Remove
+                          </button>
                         </div>
                       </div>
                     ))
@@ -623,19 +794,20 @@ export default function DashboardPage() {
                   <span className="text-xs text-muted-foreground">We're here</span>
                 </div>
                 <div className="space-y-3">
-                  {[
-                    { label: "Documentation", icon: FileText },
-                    { label: "Support Ticket", icon: MessageSquare },
-                    { label: "Live Chat", icon: Activity },
-                  ].map((item) => (
-                    <button
-                      key={item.label}
-                      className="w-full rounded-2xl border border-border bg-background/60 p-3 text-left text-xs transition hover:border-yellow-400/70 flex items-center gap-2"
-                    >
-                      <item.icon className="h-4 w-4 text-yellow-300 shrink-0" />
-                      {item.label}
-                    </button>
-                  ))}
+                  <button
+                    onClick={() => setHowToOpen(true)}
+                    className="w-full rounded-2xl border border-border bg-background/60 p-3 text-left text-xs transition hover:border-yellow-400/70 flex items-center gap-2"
+                  >
+                    <FileText className="h-4 w-4 text-yellow-300 shrink-0" />
+                    How To
+                  </button>
+                  <button
+                    onClick={() => setSupportTicketOpen(true)}
+                    className="w-full rounded-2xl border border-border bg-background/60 p-3 text-left text-xs transition hover:border-yellow-400/70 flex items-center gap-2"
+                  >
+                    <MessageSquare className="h-4 w-4 text-yellow-300 shrink-0" />
+                    Support Ticket
+                  </button>
                 </div>
               </div>
             </section>
@@ -676,6 +848,158 @@ export default function DashboardPage() {
               className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50"
             >
               {changingPlan ? "Updating..." : "Confirm switch"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Site Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className="border border-border bg-card/95 shadow-2xl shadow-black/40">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl text-foreground">
+              Remove site?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
+              This action cannot be undone. The site and all its data will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border bg-transparent text-muted-foreground hover:text-foreground">
+              Keep site
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deletingId !== null}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
+            >
+              {deletingId ? "Removing..." : "Remove site"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* How To Guide Modal */}
+      <AlertDialog open={howToOpen} onOpenChange={setHowToOpen}>
+        <AlertDialogContent className="border border-border bg-card/95 shadow-2xl shadow-black/40 max-h-[80vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl text-foreground">How to use BrieHosting</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-4 text-sm text-muted-foreground">
+            <div>
+              <h3 className="font-semibold text-foreground mb-2">📤 Uploading a Site</h3>
+              <ul className="space-y-1 text-xs">
+                <li>1. Click the "Upload Site" button in the header or "Choose File" in the Upload Center</li>
+                <li>2. Select your website .zip file (must contain index.html)</li>
+                <li>3. Wait for upload to complete - site will be provisioned automatically</li>
+                <li>4. Monitor status from "Your Sites" section</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground mb-2">⚙️ Managing Sites</h3>
+              <ul className="space-y-1 text-xs">
+                <li>• <strong>Manage:</strong> Update site settings and configuration</li>
+                <li>• <strong>Details:</strong> View site information, file size, and upload date</li>
+                <li>• <strong>Retry:</strong> Reprocess failed deployments</li>
+                <li>• <strong>Remove:</strong> Delete a site (permanently irreversible)</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground mb-2">💰 Plans &amp; Billing</h3>
+              <p className="text-xs">Choose your plan based on needs. Current plan shows your limits. Upgrade anytime from the Plans section - changes take effect immediately.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground mb-2">📊 Viewing Stats</h3>
+              <p className="text-xs">Check the Analytics section for your site statistics. Monitor active sites, deployment status, and resource usage.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground mb-2">🆘 Need Help?</h3>
+              <p className="text-xs">Use the Support section to submit a ticket or check documentation.</p>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border bg-transparent">Close</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Support Ticket Modal */}
+      <AlertDialog open={supportTicketOpen} onOpenChange={setSupportTicketOpen}>
+        <AlertDialogContent className="border border-border bg-card/95 shadow-2xl shadow-black/40">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl text-foreground">Submit Support Ticket</AlertDialogTitle>
+          </AlertDialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-semibold text-foreground block mb-1">Email</label>
+              <input
+                type="email"
+                value={ticketForm.email}
+                onChange={(e) => setTicketForm({ ...ticketForm, email: e.target.value })}
+                className="w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40"
+                placeholder="your@email.com"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-foreground block mb-1">Subject</label>
+              <input
+                type="text"
+                value={ticketForm.subject}
+                onChange={(e) => setTicketForm({ ...ticketForm, subject: e.target.value })}
+                className="w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40"
+                placeholder="e.g., Site upload failed"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-foreground block mb-1">Message</label>
+              <textarea
+                value={ticketForm.message}
+                onChange={(e) => setTicketForm({ ...ticketForm, message: e.target.value })}
+                className="w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40 resize-none h-24"
+                placeholder="Describe your issue in detail..."
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-border bg-transparent text-muted-foreground hover:text-foreground" disabled={submittingTicket}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!ticketForm.email || !ticketForm.subject || !ticketForm.message) {
+                  alert("Please fill in all fields");
+                  return;
+                }
+                setSubmittingTicket(true);
+                try {
+                  const response = await fetch("/api/support/ticket", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      email: ticketForm.email,
+                      subject: ticketForm.subject,
+                      message: ticketForm.message,
+                      userId: user?.id,
+                    }),
+                  });
+                  if (response.ok) {
+                    alert("Support ticket submitted! We'll get back to you soon.");
+                    setTicketForm({ email: user?.email || "", subject: "", message: "" });
+                    setSupportTicketOpen(false);
+                  } else {
+                    alert("Failed to submit ticket. Please try again.");
+                  }
+                } catch (error) {
+                  console.error("Error submitting ticket:", error);
+                  alert("Error submitting ticket. Please try again.");
+                } finally {
+                  setSubmittingTicket(false);
+                }
+              }}
+              disabled={submittingTicket}
+              className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50"
+            >
+              {submittingTicket ? "Submitting..." : "Submit Ticket"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
