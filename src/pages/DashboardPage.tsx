@@ -27,6 +27,8 @@ import {
   Upload,
   Users,
   Wifi,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -48,6 +50,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import SiteUploadDialog from "@/components/SiteUploadDialog";
+
+const PUBLIC_DOMAIN = import.meta.env.VITE_PUBLIC_DOMAIN || "brie.host";
 
 const STATUS_STYLES: Record<SiteStatus, string> = {
   uploaded: "bg-muted text-muted-foreground border border-muted",
@@ -75,6 +79,19 @@ export default function DashboardPage() {
   const [activeSection, setActiveSection] = useState("overview");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingPlanId, setPendingPlanId] = useState<PlanId | null>(null);
+  const [showAllSites, setShowAllSites] = useState(false);
+  const [copiedSiteId, setCopiedSiteId] = useState<string | null>(null);
+
+  const handleCopyUrl = async (siteId: string, url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedSiteId(siteId);
+      setTimeout(() => setCopiedSiteId((id) => (id === siteId ? null : id)), 1500);
+    } catch {
+      // clipboard blocked — silently ignore, user can still click the link
+    }
+  };
+
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [siteToDelete, setSiteToDelete] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -615,15 +632,58 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   ) : (
-                    sortedSites.map((site) => (
-                      <div
-                        key={site.id}
-                        className="rounded-2xl border border-border bg-background/60 p-5 transition hover:border-yellow-400/50 hover:shadow-lg hover:shadow-black/15"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm text-muted-foreground truncate">{site.original_filename}</p>
-                            <h3 className="mt-1 text-lg font-semibold text-foreground truncate">{site.name}</h3>
+                    sortedSites.map((site) => {
+                      const publicUrl = site.subdomain
+                        ? `https://${site.subdomain}.${PUBLIC_DOMAIN}`
+                        : null;
+                      return (
+                        <div
+                          key={site.id}
+                          className="rounded-2xl border border-border bg-background/60 p-5 transition hover:border-yellow-400/50 hover:shadow-lg hover:shadow-black/15"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-muted-foreground truncate">{site.original_filename}</p>
+                              <h3 className="mt-1 text-lg font-semibold text-foreground truncate">{site.name}</h3>
+                              {publicUrl ? (
+                                <div className="mt-2 flex items-center gap-2 rounded-lg border border-yellow-400/30 bg-yellow-500/5 px-3 py-2">
+                                  <Globe className="h-4 w-4 shrink-0 text-yellow-300" />
+                                  <a
+                                    href={publicUrl}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="flex-1 truncate text-sm font-medium text-yellow-200 hover:text-yellow-100 transition"
+                                    title={publicUrl}
+                                  >
+                                    {site.subdomain}.{PUBLIC_DOMAIN}
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCopyUrl(site.id, publicUrl)}
+                                    className="inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:text-yellow-200 hover:bg-yellow-500/10 transition"
+                                    aria-label="Copy URL"
+                                    title={copiedSiteId === site.id ? "Copied!" : "Copy URL"}
+                                  >
+                                    {copiedSiteId === site.id ? (
+                                      <Check className="h-3.5 w-3.5 text-emerald-300" />
+                                    ) : (
+                                      <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                  <a
+                                    href={publicUrl}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:text-yellow-200 hover:bg-yellow-500/10 transition"
+                                    aria-label="Open site"
+                                    title="Open in new tab"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                </div>
+                              ) : site.status === "live" ? (
+                                <p className="mt-2 text-xs text-muted-foreground">URL pending…</p>
+                              ) : null}
                           </div>
                           {site.status === "scan_failed" ? (
                             <button
@@ -664,7 +724,8 @@ export default function DashboardPage() {
                           </button>
                         </div>
                       </div>
-                    ))
+                    );
+                  })
                   )}
                 </div>
               </div>
