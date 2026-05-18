@@ -16,7 +16,12 @@ provider rationale, schema, and webhook design live in the API repo:
 - [ ] **Plan-upgrade screen rework** — wraps the existing plan cards on
       `DashboardPage` so the "Confirm switch" flow goes via the picker
       instead of directly calling `updatePlan`. Free plan stays a direct
-      switch (no payment).
+      switch (no payment needed because it's free).
+      **Important distinction:** the dark-pattern skip path is *not* a
+      free-tier downgrade. The user keeps whatever plan they picked
+      (even Enterprise) and just bypasses payment. See API plan doc
+      for the framing — this matters for how we build the modal copy
+      and what API the skip link calls.
 - [ ] **`PaymentReturnPage`** route (e.g. `/payments/return/:intentId`)
       — polls `GET /api/payments/intents/{id}` for ~30s while the
       provider webhook lands, then routes back to the dashboard with a
@@ -53,6 +58,13 @@ getPaymentIntent(intentId: string): Promise<{
   planId: string;
   provider: PaymentProvider;
 }>
+
+// Dark-pattern skip — activates the selected plan with NO payment, any
+// tier. NOT a free-tier downgrade. Calls POST /api/payments/skip on the
+// API, which writes an audit row with provider='skip' and flips
+// profiles.plan. Use this from the SkipConfirmShameModal "confirm"
+// button only.
+skipPayment(planId: string): Promise<{ plan: string }>
 ```
 
 ### Env vars to wire
@@ -67,23 +79,36 @@ VITE_PAYPAL_CLIENT_ID=...                # PayPal sandbox client id
 
 (Full ethical write-up and pattern names live in the API plan doc.)
 
-On the plan-upgrade screen, before the picker shows up:
+**Critical:** the skip path activates *whatever plan the user picked* —
+including the most expensive one — without charging anything. It is
+NOT a downgrade to free. That's the whole point. Build the components
+and copy around that fact.
 
-- [ ] **Pre-select** the middle tier when the picker renders.
+The picker screen happens *after* the user clicks a plan card on the
+dashboard. So at picker-render time we already know which paid plan
+they chose; the skip link reads that selected plan and posts it to
+`/api/payments/skip` if the user confirms past the shame modal.
+
+- [ ] **Pre-select** the Stripe-card payment method when the picker
+      renders.
 - [ ] **Visual hierarchy**: primary yellow CTA "Continue to checkout 🧀";
-      the skip is a small grey `<a>`, not a `<Button>`, underneath.
-      ([cn](https://github.com/brasyan/brieblast-landing/blob/main/src/lib/utils.ts)
-      whatever-utility for the muted-link style.)
-- [ ] **Confirm-shame modal** on the skip path. Title: "Wait, really?",
-      body: short loss-aversion paragraph listing what they give up,
-      buttons: primary "Take me back" vs ghost "Continue with crumbs
-      anyway 🥲".
+      the skip is a small grey `<a>` (not a `<Button>`), muted-foreground
+      colour, no icon, no underline-on-hover. Easy to miss.
+- [ ] **Confirm-shame modal** on the skip path. Title: "Wait, really?".
+      Copy reads as loss-aversion even though the user loses nothing
+      ("Most users on the {selectedPlanName} tier prefer to keep their
+      account in good standing..."). Buttons: primary "Take me back"
+      vs ghost "Continue without paying anyway 🥲".
 - [ ] **Friction asymmetry**: paying is one click → redirect. Skipping
-      is one click → modal → confirm.
+      is one click → modal → confirm → API call → success toast.
+- [ ] **Skip toast** on success: cheerful, generic ("Welcome to {plan}!")
+      — never acknowledges the skip happened. Adds to the deception
+      layer for the write-up.
 
-Implement it in components named after the pattern (e.g.
-`SkipConfirmShameModal`) so the report can point at the source as
-evidence we knew exactly what we were doing.
+Implement everything in components named after the pattern they
+implement (`SkipConfirmShameModal`, `MutedSkipLink`,
+`PreSelectedPaymentMethodPicker`). When the jury opens the source,
+the names tell on us — that's part of the demonstration.
 
 ## Test data for the demo
 
