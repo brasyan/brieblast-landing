@@ -2,7 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type SiteStatus = "uploaded" | "provisioning" | "live" | "failed" | "scan_failed";
+// Must mirror app/worker.STATUS_* on the server — missing a transitional
+// state here breaks the polling loop (the row looks "done" to the UI even
+// though the worker is still running) and leaves the badge unstyled in the
+// dashboard. `scanning` was the one that bit us first.
+export type SiteStatus =
+  | "uploaded"
+  | "scanning"
+  | "provisioning"
+  | "live"
+  | "failed"
+  | "scan_failed";
 
 export interface Site {
   id: string;
@@ -24,7 +34,7 @@ export interface Site {
 
 // Statuses where the worker is still doing something — UI should poll for
 // updates until every row is in a terminal state.
-const PENDING_STATUSES = new Set<SiteStatus>(["uploaded", "provisioning"]);
+const PENDING_STATUSES = new Set<SiteStatus>(["uploaded", "scanning", "provisioning"]);
 const POLL_INTERVAL_MS = 4000;
 
 export function useSites() {
