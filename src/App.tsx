@@ -21,6 +21,7 @@ import AccountSettingsPage from "./pages/AccountSettingsPage";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import ResponsibleDisclosurePage from "./pages/ResponsibleDisclosurePage";
+import SiteNotFoundPage from "./pages/SiteNotFoundPage";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/responsible-disclosure" element={<ResponsibleDisclosurePage />} />
+            <Route path="/sitenotfound" element={<SiteNotFoundPage />} />
             <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
