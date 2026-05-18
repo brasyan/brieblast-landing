@@ -19,6 +19,13 @@ export interface UploadResult {
   siteId: string;
   status: "uploaded" | "provisioning" | "live" | "failed" | "scan_failed";
   reason?: string;
+  suggestedSubdomain?: string;
+}
+
+export interface ProvisionResult {
+  siteId: string;
+  status: "uploaded" | "provisioning" | "live" | "failed" | "scan_failed";
+  subdomain: string;
 }
 
 export class BriehostApiError extends Error {
@@ -91,4 +98,58 @@ export async function uploadSite(
     xhr.onerror = () => reject(new BriehostApiError("Network error", 0));
     xhr.send(form);
   });
+}
+
+export async function provisionSite(
+  siteId: string,
+  subdomain: string,
+): Promise<ProvisionResult> {
+  if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
+  const token = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (API_KEY) headers["x-api-key"] = API_KEY;
+
+  const resp = await fetch(`${BASE_URL}/api/sites/${siteId}/provision`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ subdomain }),
+  });
+
+  if (!resp.ok) {
+    let detail = await resp.text();
+    let reason: string | undefined;
+    try {
+      const parsed = JSON.parse(detail);
+      detail = parsed.detail ?? detail;
+      reason = parsed.reason;
+    } catch {
+      // keep raw text
+    }
+    throw new BriehostApiError(detail || `Provision failed (${resp.status})`, resp.status, reason);
+  }
+
+  return (await resp.json()) as ProvisionResult;
+}
+
+export async function deleteSite(siteId: string): Promise<void> {
+  if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
+  const token = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (API_KEY) headers["x-api-key"] = API_KEY;
+
+  const resp = await fetch(`${BASE_URL}/api/sites/${siteId}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!resp.ok && resp.status !== 404) {
+    throw new BriehostApiError(`Delete failed (${resp.status})`, resp.status);
+  }
 }
