@@ -53,9 +53,11 @@ function deriveSubdomain(seed: string): string {
 type Step = "pick" | "name" | "provisioning";
 type Source = "zip" | "repo";
 
-// Mirrors app/repo.validate_repo_url on the server: only public GitHub HTTPS
-// URLs. We pre-check on the client so users don't wait for a round-trip just
-// to be told they pasted the wrong link.
+// Mirrors app/repo._ALLOWED_HOSTS on the server. Keep these in sync — if the
+// frontend approves a host the server doesn't, the user just gets a server
+// error instead of inline feedback, but no security impact.
+const ALLOWED_REPO_HOSTS = ["github.com", "gitlab.com", "git.gay"] as const;
+
 function repoUrlError(url: string): string | null {
   const trimmed = url.trim();
   if (!trimmed) return "Repository URL is required.";
@@ -67,12 +69,13 @@ function repoUrlError(url: string): string | null {
   }
   if (parsed.protocol !== "https:") return "Only https:// URLs are accepted.";
   if (parsed.username || parsed.password) return "Don't put credentials in the URL.";
-  if (parsed.host.toLowerCase() !== "github.com") {
-    return "Only public GitHub repositories are supported for now.";
+  const host = parsed.host.toLowerCase();
+  if (!ALLOWED_REPO_HOSTS.includes(host as (typeof ALLOWED_REPO_HOSTS)[number])) {
+    return `Only public repos on ${ALLOWED_REPO_HOSTS.join(", ")} are supported.`;
   }
   const segments = parsed.pathname.split("/").filter(Boolean);
   if (segments.length < 2) {
-    return "Use the repo URL, e.g. https://github.com/owner/repo";
+    return `Use the full repo URL, e.g. https://${host}/owner/repo`;
   }
   return null;
 }
@@ -273,14 +276,14 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
               <DialogHeader>
                 <DialogTitle>Upload a site</DialogTitle>
                 <DialogDescription>
-                  Upload a .zip or import from a public GitHub repo. You'll pick the URL on the next step.
+                  Upload a .zip or import from a public Git repo (GitHub, GitLab, git.gay). You'll pick the URL on the next step.
                 </DialogDescription>
               </DialogHeader>
 
               <Tabs value={source} onValueChange={(v) => !uploading && setSource(v as Source)}>
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="zip" disabled={uploading}>Zip file</TabsTrigger>
-                  <TabsTrigger value="repo" disabled={uploading}>GitHub repo</TabsTrigger>
+                  <TabsTrigger value="repo" disabled={uploading}>Git repo</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="zip" className="mt-4">
@@ -339,7 +342,7 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
                         <p className="text-sm text-destructive">{repoUrlInvalid}</p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        Public repos only for now. We'll clone the default branch unless you pick another.
+                        Public repos on GitHub, GitLab, or git.gay. We'll clone the default branch unless you pick another.
                       </p>
                     </div>
 
