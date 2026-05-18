@@ -23,9 +23,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { siteUploadSchema, type SiteUploadFormData } from "@/lib/validations";
 import {
   uploadSite,
+  uploadSiteFromRepo,
   provisionSite,
   deleteSite,
   BriehostApiError,
@@ -49,13 +51,43 @@ function deriveSubdomain(seed: string): string {
 }
 
 type Step = "pick" | "name" | "provisioning";
+type Source = "zip" | "repo";
+
+// Mirrors app/repo.validate_repo_url on the server: only public GitHub HTTPS
+// URLs. We pre-check on the client so users don't wait for a round-trip just
+// to be told they pasted the wrong link.
+function repoUrlError(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return "Repository URL is required.";
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return "That doesn't look like a valid URL.";
+  }
+  if (parsed.protocol !== "https:") return "Only https:// URLs are accepted.";
+  if (parsed.username || parsed.password) return "Don't put credentials in the URL.";
+  if (parsed.host.toLowerCase() !== "github.com") {
+    return "Only public GitHub repositories are supported for now.";
+  }
+  const segments = parsed.pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return "Use the repo URL, e.g. https://github.com/owner/repo";
+  }
+  return null;
+}
 
 export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: SiteUploadDialogProps) {
   const [step, setStep] = useState<Step>("pick");
+  const [source, setSource] = useState<Source>("zip");
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [scanFailedOpen, setScanFailedOpen] = useState(false);
+
+  const [repoUrl, setRepoUrl] = useState("");
+  const [repoBranch, setRepoBranch] = useState("");
+  const [repoUrlInvalid, setRepoUrlInvalid] = useState<string | null>(null);
 
   const [siteId, setSiteId] = useState<string | null>(null);
   const [subdomain, setSubdomain] = useState("");
@@ -73,12 +105,16 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
   const resetAll = () => {
     reset();
     setStep("pick");
+    setSource("zip");
     setProgress(0);
     setServerError(null);
     setUploading(false);
     setSiteId(null);
     setSubdomain("");
     setSubdomainError(null);
+    setRepoUrl("");
+    setRepoBranch("");
+    setRepoUrlInvalid(null);
   };
 
   const closeAndReset = () => {
@@ -106,6 +142,31 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
     closeAndReset();
   };
 
+  const handleUploadResult = (result: { siteId: string; suggestedSubdomain?: string }, fallbackSeed: string) => {
+    const suggested = result.suggestedSubdomain || deriveSubdomain(fallbackSeed);
+    setSiteId(result.siteId);
+    setSubdomain(suggested);
+    setStep("name");
+    setUploading(false);
+  };
+
+  const handleUploadError = (e: unknown, fallbackMessage: string) => {
+    console.error("Upload error:", e);
+    if (e instanceof BriehostApiError) {
+      if (e.reason === "scan_failed") {
+        setScanFailedOpen(true);
+        setUploading(false);
+        onOpenChange(false);
+      } else {
+        setServerError(e.message);
+        setUploading(false);
+      }
+    } else {
+      setServerError(fallbackMessage);
+      setUploading(false);
+    }
+  };
+
   const onUploadSubmit = async (data: SiteUploadFormData) => {
     setServerError(null);
     setUploading(true);
@@ -113,26 +174,31 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
     try {
       const result = await uploadSite(data.file[0], (f) => setProgress(Math.round(f * 100)));
       const fallbackSeed = data.file[0].name.replace(/\.zip$/i, "");
-      const suggested = result.suggestedSubdomain || deriveSubdomain(fallbackSeed);
-      setSiteId(result.siteId);
-      setSubdomain(suggested);
-      setStep("name");
-      setUploading(false);
+      handleUploadResult(result, fallbackSeed);
     } catch (e) {
-      console.error("Upload error:", e);
-      if (e instanceof BriehostApiError) {
-        if (e.reason === "scan_failed") {
-          setScanFailedOpen(true);
-          setUploading(false);
-          onOpenChange(false);
-        } else {
-          setServerError(e.message);
-          setUploading(false);
-        }
-      } else {
-        setServerError("Upload failed");
-        setUploading(false);
-      }
+      handleUploadError(e, "Upload failed");
+    }
+  };
+
+  const onRepoSubmit = async () => {
+    const validationError = repoUrlError(repoUrl);
+    if (validationError) {
+      setRepoUrlInvalid(validationError);
+      return;
+    }
+    setRepoUrlInvalid(null);
+    setServerError(null);
+    setUploading(true);
+    // Clone progress isn't reported by the server; show indeterminate state.
+    setProgress(0);
+    try {
+      const result = await uploadSiteFromRepo(repoUrl.trim(), repoBranch.trim() || undefined);
+      // Use the repo name as the seed for the suggested subdomain fallback.
+      const segments = new URL(repoUrl.trim()).pathname.split("/").filter(Boolean);
+      const fallbackSeed = segments[1]?.replace(/\.git$/i, "") || "site";
+      handleUploadResult(result, fallbackSeed);
+    } catch (e) {
+      handleUploadError(e, "Repo import failed");
     }
   };
 
@@ -207,43 +273,106 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
               <DialogHeader>
                 <DialogTitle>Upload a site</DialogTitle>
                 <DialogDescription>
-                  Upload a .zip of your PHP site (max 100 MB). You'll pick the URL on the next step.
+                  Upload a .zip or import from a public GitHub repo. You'll pick the URL on the next step.
                 </DialogDescription>
               </DialogHeader>
 
-              <form onSubmit={handleSubmit(onUploadSubmit)} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="site-zip">Zip file</Label>
-                  <Input
-                    id="site-zip"
-                    type="file"
-                    accept=".zip,application/zip"
-                    disabled={uploading}
-                    {...fileReg}
-                  />
-                  {errors.file && (
-                    <p className="text-sm text-destructive">{errors.file.message as string}</p>
-                  )}
-                </div>
+              <Tabs value={source} onValueChange={(v) => !uploading && setSource(v as Source)}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="zip" disabled={uploading}>Zip file</TabsTrigger>
+                  <TabsTrigger value="repo" disabled={uploading}>GitHub repo</TabsTrigger>
+                </TabsList>
 
-                {uploading && (
-                  <div className="space-y-1">
-                    <Progress value={progress} />
-                    <p className="text-xs text-muted-foreground">{progress}%</p>
+                <TabsContent value="zip" className="mt-4">
+                  <form onSubmit={handleSubmit(onUploadSubmit)} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="site-zip">Zip file</Label>
+                      <Input
+                        id="site-zip"
+                        type="file"
+                        accept=".zip,application/zip"
+                        disabled={uploading}
+                        {...fileReg}
+                      />
+                      {errors.file && (
+                        <p className="text-sm text-destructive">{errors.file.message as string}</p>
+                      )}
+                    </div>
+
+                    {uploading && source === "zip" && (
+                      <div className="space-y-1">
+                        <Progress value={progress} />
+                        <p className="text-xs text-muted-foreground">{progress}%</p>
+                      </div>
+                    )}
+
+                    {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => void close()} disabled={uploading}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={uploading}>
+                        {uploading ? "Uploading…" : "Upload"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </TabsContent>
+
+                <TabsContent value="repo" className="mt-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="repo-url">Repository URL</Label>
+                      <Input
+                        id="repo-url"
+                        type="url"
+                        placeholder="https://github.com/owner/repo"
+                        value={repoUrl}
+                        onChange={(e) => {
+                          setRepoUrl(e.target.value);
+                          setRepoUrlInvalid(null);
+                        }}
+                        disabled={uploading}
+                        autoComplete="off"
+                      />
+                      {repoUrlInvalid && (
+                        <p className="text-sm text-destructive">{repoUrlInvalid}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Public repos only for now. We'll clone the default branch unless you pick another.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="repo-branch">Branch <span className="text-muted-foreground">(optional)</span></Label>
+                      <Input
+                        id="repo-branch"
+                        type="text"
+                        placeholder="main"
+                        value={repoBranch}
+                        onChange={(e) => setRepoBranch(e.target.value)}
+                        disabled={uploading}
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    {uploading && source === "repo" && (
+                      <p className="text-xs text-muted-foreground">Cloning repository…</p>
+                    )}
+
+                    {serverError && <p className="text-sm text-destructive">{serverError}</p>}
+
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => void close()} disabled={uploading}>
+                        Cancel
+                      </Button>
+                      <Button type="button" onClick={() => void onRepoSubmit()} disabled={uploading}>
+                        {uploading ? "Importing…" : "Import repo"}
+                      </Button>
+                    </DialogFooter>
                   </div>
-                )}
-
-                {serverError && <p className="text-sm text-destructive">{serverError}</p>}
-
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => void close()} disabled={uploading}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={uploading}>
-                    {uploading ? "Uploading…" : "Upload"}
-                  </Button>
-                </DialogFooter>
-              </form>
+                </TabsContent>
+              </Tabs>
             </>
           )}
 

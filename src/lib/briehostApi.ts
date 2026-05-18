@@ -100,6 +100,48 @@ export async function uploadSite(
   });
 }
 
+export async function uploadSiteFromRepo(
+  repoUrl: string,
+  branch?: string,
+): Promise<UploadResult> {
+  if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
+  const token = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (API_KEY) headers["x-api-key"] = API_KEY;
+
+  const body: { repoUrl: string; branch?: string } = { repoUrl };
+  if (branch && branch.trim()) body.branch = branch.trim();
+
+  const resp = await fetch(`${BASE_URL}/api/sites/upload-repo`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    let detail = await resp.text();
+    let reason: string | undefined;
+    try {
+      const parsed = JSON.parse(detail);
+      detail = parsed.detail ?? detail;
+      reason = parsed.reason;
+    } catch {
+      // keep raw text
+    }
+    throw new BriehostApiError(
+      detail || `Repo import failed (${resp.status})`,
+      resp.status,
+      reason,
+    );
+  }
+
+  return (await resp.json()) as UploadResult;
+}
+
 export async function provisionSite(
   siteId: string,
   subdomain: string,
