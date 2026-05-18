@@ -55,6 +55,7 @@ const PUBLIC_DOMAIN = import.meta.env.VITE_PUBLIC_DOMAIN || "briehosting.be";
 
 const STATUS_STYLES: Record<SiteStatus, string> = {
   uploaded: "bg-muted text-muted-foreground border border-muted",
+  scanning: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
   provisioning: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
   live: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
   failed: "bg-destructive/20 text-destructive border border-destructive/30",
@@ -63,6 +64,7 @@ const STATUS_STYLES: Record<SiteStatus, string> = {
 
 const STATUS_LABEL: Record<SiteStatus, string> = {
   uploaded: "Uploaded",
+  scanning: "Scanning…",
   provisioning: "Provisioning…",
   live: "Live",
   failed: "Failed",
