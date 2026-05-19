@@ -6,8 +6,9 @@ import { supabase } from "@/lib/supabase";
 
 interface Enrollment {
   factorId: string;
-  qrSvg: string;
+  qrImageSrc: string;
   secret: string;
+  uri: string;
 }
 
 const safeDecodeURIComponent = (value: string) => {
@@ -29,6 +30,11 @@ const getQrSvgMarkup = (qrCode: string) => {
   }
 
   return qrCode;
+};
+
+const svgToDataUrl = (svg: string) => {
+  const encodedSvg = window.btoa(unescape(encodeURIComponent(svg)));
+  return `data:image/svg+xml;base64,${encodedSvg}`;
 };
 
 export default function Setup2FAPage() {
@@ -82,10 +88,12 @@ export default function Setup2FAPage() {
         setError(enrollError.message);
         hasStartedEnrollment.current = false;
       } else {
+        const qrSvg = getQrSvgMarkup(data.totp.qr_code);
         setEnrollment({
           factorId: data.id,
-          qrSvg: getQrSvgMarkup(data.totp.qr_code),
+          qrImageSrc: svgToDataUrl(qrSvg),
           secret: data.totp.secret,
+          uri: data.totp.uri,
         });
       }
 
@@ -186,13 +194,19 @@ export default function Setup2FAPage() {
           {enrollment && (
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="flex justify-center rounded-lg bg-white p-4">
-                <div
-                  role="img"
-                  aria-label="Authenticator app QR code"
-                  className="h-48 w-48 [&>svg]:h-full [&>svg]:w-full"
-                  dangerouslySetInnerHTML={{ __html: enrollment.qrSvg }}
+                <img
+                  src={enrollment.qrImageSrc}
+                  alt="Authenticator app QR code"
+                  className="h-56 w-56 object-contain [image-rendering:pixelated]"
                 />
               </div>
+
+              <a
+                href={enrollment.uri}
+                className="block text-center text-sm font-medium text-primary hover:underline"
+              >
+                Open in authenticator app
+              </a>
 
               <div>
                 <label htmlFor="secret" className="block text-sm font-medium text-foreground mb-1.5">
