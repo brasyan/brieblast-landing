@@ -6,6 +6,7 @@ import type { PlanId } from "@/lib/plans";
 interface Profile {
   id: string;
   plan: PlanId;
+  two_factor_required: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -39,7 +40,7 @@ export function useProfile() {
       // No row found — create one (handles users created before migration)
       const { data: newProfile, error: upsertError } = await supabase
         .from("profiles")
-        .upsert({ id: user.id, plan: "none" })
+        .upsert({ id: user.id, plan: "none", two_factor_required: false })
         .select()
         .single();
       if (newProfile) {

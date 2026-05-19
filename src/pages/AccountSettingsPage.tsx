@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMfaStatus } from "@/hooks/useMfaStatus";
 import { supabase } from "@/lib/supabase";
 import {
   accountProfileSchema,
@@ -15,6 +16,7 @@ import {
 
 export default function AccountSettingsPage() {
   const { user, signOut, updatePassword } = useAuth();
+  const { loading: mfaLoading, profileRequires2fa, verifiedFactors, currentLevel, error: mfaError } = useMfaStatus();
   const navigate = useNavigate();
 
   const initialDisplayName = useMemo(() => {
@@ -308,6 +310,46 @@ export default function AccountSettingsPage() {
                 {isPasswordSubmitting ? "Saving..." : "Update Password"}
               </button>
             </form>
+          </section>
+
+          <section className="bg-card border border-border rounded-xl p-6">
+            <h2 className="text-lg font-bold text-foreground mb-1">Two-factor authentication</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Protect your account with a code from an authenticator app when signing in.
+            </p>
+
+            {mfaError && (
+              <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg p-3 text-sm mb-4">
+                {mfaError}
+              </div>
+            )}
+
+            {mfaLoading ? (
+              <div className="text-primary text-sm animate-pulse">Checking two-factor status...</div>
+            ) : verifiedFactors.length > 0 ? (
+              <div className="space-y-3">
+                <div className="bg-accent/20 border border-accent/40 text-foreground rounded-lg p-3 text-sm">
+                  Two-factor authentication is enabled{profileRequires2fa ? " and required" : ""}.
+                </div>
+                {currentLevel !== "aal2" && (
+                  <Link
+                    to="/verify-2fa"
+                    state={{ from: "/account-settings" }}
+                    className="inline-flex px-4 py-2 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] transition-transform"
+                  >
+                    Verify 2FA
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <Link
+                to="/setup-2fa"
+                state={{ from: "/account-settings" }}
+                className="inline-flex px-4 py-2 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] transition-transform"
+              >
+                Enable 2FA
+              </Link>
+            )}
           </section>
         </div>
       </main>
