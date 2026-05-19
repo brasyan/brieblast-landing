@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminProtectedRoute from "@/components/AdminProtectedRoute";
+import MfaEncouragementDialog from "@/components/MfaEncouragementDialog";
 import Index from "./pages/Index";
 import Features from "./pages/Features";
 import Status from "./pages/Status";
@@ -78,6 +79,7 @@ const App = () => (
             <Route path="/sitenotfound" element={<SiteNotFoundPage />} />
             <Route path="*" element={<NotFound />} />
             </Routes>
+            <MfaEncouragementDialog />
           </div>
         </AuthProvider>
       </BrowserRouter>
