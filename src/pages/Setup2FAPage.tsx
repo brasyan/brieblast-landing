@@ -6,9 +6,30 @@ import { supabase } from "@/lib/supabase";
 
 interface Enrollment {
   factorId: string;
-  qrCode: string;
+  qrSvg: string;
   secret: string;
 }
+
+const safeDecodeURIComponent = (value: string) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
+const getQrSvgMarkup = (qrCode: string) => {
+  if (qrCode.startsWith("data:image/svg+xml")) {
+    const [, payload = ""] = qrCode.split(",", 2);
+    return safeDecodeURIComponent(payload);
+  }
+
+  if (qrCode.includes("%3Csvg")) {
+    return safeDecodeURIComponent(qrCode);
+  }
+
+  return qrCode;
+};
 
 export default function Setup2FAPage() {
   const { user, loading: authLoading } = useAuth();
@@ -42,14 +63,16 @@ export default function Setup2FAPage() {
         return;
       }
 
-      const unverifiedTotpFactors = existingFactors.data.totp.filter((factor) => factor.status === "unverified");
+      const unverifiedTotpFactors = existingFactors.data.all.filter(
+        (factor) => factor.factor_type === "totp" && factor.status === "unverified",
+      );
       for (const factor of unverifiedTotpFactors) {
         await supabase.auth.mfa.unenroll({ factorId: factor.id });
       }
 
       const { data, error: enrollError } = await supabase.auth.mfa.enroll({
         factorType: "totp",
-        friendlyName: "Authenticator app",
+        friendlyName: `Authenticator app ${Date.now()}`,
         issuer: "BrieHosting",
       });
 
@@ -61,7 +84,7 @@ export default function Setup2FAPage() {
       } else {
         setEnrollment({
           factorId: data.id,
-          qrCode: `data:image/svg+xml;utf-8,${encodeURIComponent(data.totp.qr_code)}`,
+          qrSvg: getQrSvgMarkup(data.totp.qr_code),
           secret: data.totp.secret,
         });
       }
@@ -163,7 +186,12 @@ export default function Setup2FAPage() {
           {enrollment && (
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="flex justify-center rounded-lg bg-white p-4">
-                <img src={enrollment.qrCode} alt="Authenticator app QR code" className="h-48 w-48" />
+                <div
+                  role="img"
+                  aria-label="Authenticator app QR code"
+                  className="h-48 w-48 [&>svg]:h-full [&>svg]:w-full"
+                  dangerouslySetInnerHTML={{ __html: enrollment.qrSvg }}
+                />
               </div>
 
               <div>
