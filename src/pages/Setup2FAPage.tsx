@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMfaStatus } from "@/hooks/useMfaStatus";
@@ -22,11 +22,13 @@ export default function Setup2FAPage() {
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasStartedEnrollment = useRef(false);
 
   useEffect(() => {
-    if (!user || loading || needsChallenge || enrollment || isStarting) return;
+    if (!user || loading || needsChallenge || enrollment || hasStartedEnrollment.current) return;
 
     let isMounted = true;
+    hasStartedEnrollment.current = true;
 
     const startEnrollment = async () => {
       setIsStarting(true);
@@ -36,6 +38,7 @@ export default function Setup2FAPage() {
       if (existingFactors.error) {
         if (isMounted) setError(existingFactors.error.message);
         if (isMounted) setIsStarting(false);
+        if (isMounted) hasStartedEnrollment.current = false;
         return;
       }
 
@@ -54,6 +57,7 @@ export default function Setup2FAPage() {
 
       if (enrollError) {
         setError(enrollError.message);
+        hasStartedEnrollment.current = false;
       } else {
         setEnrollment({
           factorId: data.id,
@@ -70,7 +74,7 @@ export default function Setup2FAPage() {
     return () => {
       isMounted = false;
     };
-  }, [enrollment, isStarting, loading, needsChallenge, user]);
+  }, [enrollment, loading, needsChallenge, user]);
 
   if (authLoading || loading) {
     return (
