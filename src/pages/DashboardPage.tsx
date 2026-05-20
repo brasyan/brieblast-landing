@@ -101,6 +101,10 @@ const getTrafficSummary = (site: Site) => {
   return "Not available yet";
 };
 
+const formatDateTime = (value: string) => new Date(value).toLocaleString();
+const getSupportContext = (site: Site) => encodeURIComponent(site.subdomain ?? site.id);
+const sanitizeSupportText = (value: string) => value.replace(/\s+/g, " ").trim();
+
 const getPublicUrl = (site: Site) => (
   site.subdomain ? `https://${site.subdomain}.${PUBLIC_DOMAIN}` : null
 );
@@ -1477,7 +1481,7 @@ export default function DashboardPage() {
                 void handleSaveManage();
               }}
             >
-              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+              <div role="note" aria-live="polite" className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
                 To rename or migrate your site, please contact support.
               </div>
 
@@ -1494,7 +1498,7 @@ export default function DashboardPage() {
                         type="text"
                         value={manageForm.name}
                         readOnly
-                        disabled
+                        aria-readonly="true"
                         className="w-full cursor-not-allowed bg-transparent text-muted-foreground focus-visible:outline-none"
                       />
                     </div>
@@ -1510,7 +1514,7 @@ export default function DashboardPage() {
                         type="text"
                         value={manageForm.domain}
                         readOnly
-                        disabled
+                        aria-readonly="true"
                         className="w-full cursor-not-allowed bg-transparent px-3 py-2 text-sm text-muted-foreground focus-visible:outline-none"
                       />
                       <span className="flex items-center border-l border-border bg-muted/50 px-3 text-xs text-muted-foreground">
@@ -1523,7 +1527,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Creation date</p>
                       <p className="mt-1 text-sm font-medium text-foreground">
-                        {new Date(selectedManageSite.created_at).toLocaleString()}
+                        {formatDateTime(selectedManageSite.created_at)}
                       </p>
                     </div>
                     <div>
@@ -1535,7 +1539,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Last updated</p>
                       <p className="mt-1 text-sm font-medium text-foreground">
-                        {new Date(selectedManageSite.updated_at).toLocaleString()}
+                        {formatDateTime(selectedManageSite.updated_at)}
                       </p>
                     </div>
                     <div>
@@ -1545,21 +1549,23 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <aside className="space-y-3 rounded-lg border border-border bg-background/60 p-4">
+                <aside aria-label="Support resources" className="space-y-3 rounded-lg border border-border bg-background/60 p-4">
                   <h3 className="text-sm font-semibold text-foreground">Resources</h3>
                   <a
-                    href={`https://docs.briehosting.be/?site=${encodeURIComponent(selectedManageSite.subdomain ?? selectedManageSite.id)}`}
+                    href={`https://docs.briehosting.be/?site=${getSupportContext(selectedManageSite)}`}
                     target="_blank"
                     rel="noreferrer"
+                    aria-label="Documentation (opens in a new tab)"
                     className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:border-yellow-400/70"
                   >
                     Documentation
                     <ExternalLink className="h-4 w-4 text-muted-foreground" />
                   </a>
                   <a
-                    href={`https://docs.briehosting.be/faq?site=${encodeURIComponent(selectedManageSite.subdomain ?? selectedManageSite.id)}`}
+                    href={`https://docs.briehosting.be/faq?site=${getSupportContext(selectedManageSite)}`}
                     target="_blank"
                     rel="noreferrer"
+                    aria-label="FAQ (opens in a new tab)"
                     className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:border-yellow-400/70"
                   >
                     FAQ
@@ -1568,13 +1574,13 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setTicketForm((current) => ({
-                        email: current.email || user?.email || "",
-                        subject: current.subject || `Site support request: ${selectedManageSite.name}`,
-                        message:
-                          current.message ||
-                          `Site: ${selectedManageSite.name}\nSubdomain: ${selectedManageSite.subdomain ?? "not set"}\n\nPlease help with this site.`,
-                      }));
+                      const safeSiteName = sanitizeSupportText(selectedManageSite.name);
+                      const safeSubdomain = sanitizeSupportText(selectedManageSite.subdomain ?? "not set");
+                      setTicketForm({
+                        email: user?.email || "",
+                        subject: `Site support request: ${safeSiteName}`,
+                        message: `Site: ${safeSiteName}\nSubdomain: ${safeSubdomain}\n\nPlease help with this site.`,
+                      });
                       closeManageDialog();
                       setSupportTicketOpen(true);
                     }}

@@ -97,9 +97,7 @@ describe("DashboardPage manage modal", () => {
     const nameInput = await screen.findByLabelText("Site name");
     const domainInput = screen.getByLabelText("Subdomain");
 
-    expect(nameInput).toBeDisabled();
     expect(nameInput).toHaveAttribute("readonly");
-    expect(domainInput).toBeDisabled();
     expect(domainInput).toHaveAttribute("readonly");
     expect(screen.getByText("To rename or migrate your site, please contact support.")).toBeInTheDocument();
     expect(screen.getByText("Creation date")).toBeInTheDocument();
@@ -109,8 +107,8 @@ describe("DashboardPage manage modal", () => {
     expect(screen.getByText("Traffic")).toBeInTheDocument();
     expect(screen.getByText("Not available yet")).toBeInTheDocument();
 
-    const docsLink = screen.getByRole("link", { name: "Documentation" });
-    const faqLink = screen.getByRole("link", { name: "FAQ" });
+    const docsLink = screen.getByRole("link", { name: "Documentation (opens in a new tab)" });
+    const faqLink = screen.getByRole("link", { name: "FAQ (opens in a new tab)" });
     expect(docsLink).toHaveAttribute("href", expect.stringContaining("site=old-site"));
     expect(faqLink).toHaveAttribute("href", expect.stringContaining("site=old-site"));
     expect(screen.getByRole("button", { name: "Contact Support" })).toBeInTheDocument();
