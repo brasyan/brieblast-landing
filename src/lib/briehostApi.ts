@@ -295,6 +295,26 @@ export async function createPaymentIntent(
   return (await resp.json()) as CreatePaymentIntentResult;
 }
 
+export async function listPaymentIntents(limit = 50): Promise<PaymentIntent[]> {
+  if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
+  const token = await getAccessToken();
+
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  if (API_KEY) headers["x-api-key"] = API_KEY;
+
+  const resp = await fetch(`${BASE_URL}/api/payments/intents?limit=${limit}`, {
+    headers,
+  });
+  if (!resp.ok) {
+    throw new BriehostApiError(
+      `List payment intents failed (${resp.status})`,
+      resp.status,
+    );
+  }
+  const body = (await resp.json()) as { intents: PaymentIntent[] };
+  return body.intents ?? [];
+}
+
 export async function getPaymentIntent(intentId: string): Promise<PaymentIntent> {
   if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
   const token = await getAccessToken();
