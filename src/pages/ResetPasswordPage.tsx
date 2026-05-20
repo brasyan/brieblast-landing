@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { resetPasswordSchema, type ResetPasswordFormData } from "@/lib/validations";
 
 export default function ResetPasswordPage() {
-  const { updatePassword, session } = useAuth();
+  const { updatePassword, session, loading } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -18,6 +18,15 @@ export default function ResetPasswordPage() {
   } = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
   });
+
+  // Wait for loading to complete before checking session
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-primary text-xl animate-pulse">Loading...</div>
+      </div>
+    );
+  }
 
   // User must have a session (from the reset email link) to access this page
   if (!session) {
