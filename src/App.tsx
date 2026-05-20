@@ -78,14 +78,12 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/responsible-disclosure" element={<ResponsibleDisclosurePage />} />
             <Route path="/sitenotfound" element={<SiteNotFoundPage />} />
-            <Route
-              path="/payment-return/:intentId"
-              element={
-                <ProtectedRoute>
-                  <PaymentReturnPage />
-                </ProtectedRoute>
-              }
-            />
+            {/* Intentionally NOT wrapped in ProtectedRoute. If the Stripe
+                round-trip dropped the session (rare browser quirk), we
+                still want to show the user *something* useful instead of
+                kicking them to /login. The page handles the unauth case
+                gracefully — webhook has already flipped the plan by then. */}
+            <Route path="/payment-return/:intentId" element={<PaymentReturnPage />} />
             <Route path="*" element={<NotFound />} />
             </Routes>
             <MfaEncouragementDialog />
