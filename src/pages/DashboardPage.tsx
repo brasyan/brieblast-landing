@@ -119,6 +119,10 @@ export default function DashboardPage() {
   const [sortBy, setSortBy] = useState<"name" | "status" | "date" | "size">("date");
   const [scanFailedSiteId, setScanFailedSiteId] = useState<string | null>(null);
   const [detailsSiteId, setDetailsSiteId] = useState<string | null>(null);
+  const [manageSiteId, setManageSiteId] = useState<string | null>(null);
+  const [manageForm, setManageForm] = useState({ name: "", domain: "" });
+  const [manageError, setManageError] = useState<string | null>(null);
+  const [manageSaving, setManageSaving] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -173,6 +177,63 @@ export default function DashboardPage() {
 
   const selectedScanFailedSite = sites.find((site) => site.id === scanFailedSiteId) ?? null;
   const selectedDetailsSite = sites.find((site) => site.id === detailsSiteId) ?? null;
+  const selectedManageSite = sites.find((site) => site.id === manageSiteId) ?? null;
+
+  const openManageDialog = (site: Site) => {
+    setManageSiteId(site.id);
+    setManageForm({
+      name: site.name,
+      domain: site.subdomain ?? "",
+    });
+    setManageError(null);
+  };
+
+  const closeManageDialog = () => {
+    setManageSiteId(null);
+    setManageError(null);
+    setManageSaving(false);
+  };
+
+  const handleSaveManage = async () => {
+    if (!selectedManageSite || !user?.id) return;
+
+    const nextName = manageForm.name.trim();
+    const nextDomain = manageForm.domain.trim().toLowerCase();
+
+    if (!nextName) {
+      setManageError("Site name is required.");
+      return;
+    }
+
+    if (nextDomain && !/^[a-z0-9-]+$/.test(nextDomain)) {
+      setManageError("Domain can only contain lowercase letters, numbers, and hyphens.");
+      return;
+    }
+
+    setManageSaving(true);
+    setManageError(null);
+    try {
+      const { error } = await supabase
+        .from("sites")
+        .update({
+          name: nextName,
+          subdomain: nextDomain || null,
+        })
+        .eq("id", selectedManageSite.id)
+        .eq("user_id", user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      await refetchSites();
+      closeManageDialog();
+    } catch (error) {
+      console.error("Failed to update site settings:", error);
+      setManageError("Couldn't save changes. Please try again.");
+      setManageSaving(false);
+    }
+  };
 
   const openScanFailedDialog = (siteId: string) => {
     setScanFailedSiteId(siteId);
@@ -750,7 +811,11 @@ export default function DashboardPage() {
                           <p>Uploaded: {new Date(site.created_at).toLocaleDateString()}</p>
                         </div>
                         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                          <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
+                          <button
+                            type="button"
+                            onClick={() => openManageDialog(site)}
+                            className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70"
+                          >
                             Manage
                           </button>
                           <button
@@ -1364,6 +1429,84 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={manageSiteId !== null} onOpenChange={(open) => !open && closeManageDialog()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Site</DialogTitle>
+            <DialogDescription>
+              Update editable settings for this site.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedManageSite && (
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSaveManage();
+              }}
+            >
+              <div>
+                <label htmlFor="manage-site-name" className="mb-1 block text-sm font-semibold text-foreground">
+                  Site name
+                </label>
+                <input
+                  id="manage-site-name"
+                  type="text"
+                  value={manageForm.name}
+                  onChange={(event) => setManageForm((current) => ({ ...current, name: event.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40"
+                  placeholder="My awesome site"
+                  disabled={manageSaving}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="manage-site-domain" className="mb-1 block text-sm font-semibold text-foreground">
+                  Domain
+                </label>
+                <div className="flex items-stretch overflow-hidden rounded-lg border border-border bg-background/60 focus-within:ring-2 focus-within:ring-yellow-500/40">
+                  <input
+                    id="manage-site-domain"
+                    type="text"
+                    value={manageForm.domain}
+                    onChange={(event) => setManageForm((current) => ({ ...current, domain: event.target.value }))}
+                    className="w-full bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
+                    placeholder="your-site"
+                    disabled={manageSaving}
+                  />
+                  <span className="flex items-center border-l border-border bg-muted/30 px-3 text-xs text-muted-foreground">
+                    .{PUBLIC_DOMAIN}
+                  </span>
+                </div>
+              </div>
+
+              {manageError && (
+                <p className="text-sm text-destructive">{manageError}</p>
+              )}
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeManageDialog}
+                  disabled={manageSaving}
+                  className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition hover:border-yellow-400/70 hover:text-foreground disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={manageSaving}
+                  className="rounded-lg bg-yellow-500/90 px-4 py-2 text-sm font-semibold text-black transition hover:bg-yellow-400 disabled:opacity-50"
+                >
+                  {manageSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>
