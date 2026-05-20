@@ -75,7 +75,7 @@ export default function RegisterPage() {
             <div className="text-5xl mb-4">📧</div>
             <h1 className="text-2xl font-bold text-foreground mb-2">Check your email!</h1>
             <p className="text-muted-foreground text-sm">
-              We've sent a confirmation link to your email address. Click it to activate your account.
+              We've sent a confirmation link to your email address. Click it to activate your account, then set up two-factor authentication on your first sign-in.
             </p>
             <Link
               to="/login"
@@ -106,7 +106,7 @@ export default function RegisterPage() {
             Create an account 🚀
           </h1>
           <p className="text-muted-foreground text-center text-sm mb-6">
-            Join the cheesiest hosting on the internet
+            Join the cheesiest hosting on the internet. New accounts require two-factor authentication.
           </p>
 
           {serverError && (

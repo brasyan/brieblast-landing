@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AdminProtectedRoute from "@/components/AdminProtectedRoute";
+import MfaEncouragementDialog from "@/components/MfaEncouragementDialog";
 import Index from "./pages/Index";
 import Features from "./pages/Features";
 import Status from "./pages/Status";
@@ -15,6 +16,8 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import Setup2FAPage from "./pages/Setup2FAPage";
+import Verify2FAPage from "./pages/Verify2FAPage";
 import DashboardPage from "./pages/DashboardPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
@@ -43,6 +46,8 @@ const App = () => (
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/setup-2fa" element={<Setup2FAPage />} />
+            <Route path="/verify-2fa" element={<Verify2FAPage />} />
             <Route
               path="/dashboard"
               element={
@@ -54,9 +59,11 @@ const App = () => (
             <Route
               path="/admin"
               element={
-                <AdminProtectedRoute>
-                  <AdminDashboard />
-                </AdminProtectedRoute>
+                <ProtectedRoute>
+                  <AdminProtectedRoute>
+                    <AdminDashboard />
+                  </AdminProtectedRoute>
+                </ProtectedRoute>
               }
             />
             <Route
@@ -79,6 +86,7 @@ const App = () => (
             <Route path="/payment-return/:intentId" element={<PaymentReturnPage />} />
             <Route path="*" element={<NotFound />} />
             </Routes>
+            <MfaEncouragementDialog />
           </div>
         </AuthProvider>
       </BrowserRouter>

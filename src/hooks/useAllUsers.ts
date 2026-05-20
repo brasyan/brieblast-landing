@@ -47,6 +47,32 @@ export interface AdminSecurityAlert {
   updated_at: string;
 }
 
+export type StatusIncidentStatus = "investigating" | "identified" | "monitoring" | "resolved";
+export type StatusIncidentSeverity = "notice" | "degraded" | "outage";
+
+export interface AdminStatusIncident {
+  id: string;
+  title: string;
+  service: string;
+  status: StatusIncidentStatus;
+  severity: StatusIncidentSeverity;
+  description: string;
+  started_at: string;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StatusIncidentInput {
+  title: string;
+  service: string;
+  status: StatusIncidentStatus;
+  severity: StatusIncidentSeverity;
+  description: string;
+  started_at?: string;
+  resolved_at?: string | null;
+}
+
 interface SiteRow {
   id: string;
   user_id: string;
@@ -158,6 +184,7 @@ export function useAllUsers() {
   const [sites, setSites] = useState<AdminSite[]>([]);
   const [activity, setActivity] = useState<AdminActivityEvent[]>([]);
   const [securityAlerts, setSecurityAlerts] = useState<AdminSecurityAlert[]>([]);
+  const [statusIncidents, setStatusIncidents] = useState<AdminStatusIncident[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -180,6 +207,13 @@ export function useAllUsers() {
         .order("created_at", { ascending: false });
 
       if (sitesError) throw sitesError;
+
+      const { data: incidentRows, error: incidentsError } = await supabase
+        .from("status_incidents")
+        .select("id, title, service, status, severity, description, started_at, resolved_at, created_at, updated_at")
+        .order("started_at", { ascending: false });
+
+      if (incidentsError) throw incidentsError;
 
       const profileRows = (profiles ?? []) as ProfileRow[];
       const siteRows = (allSites ?? []) as SiteRow[];
@@ -205,6 +239,7 @@ export function useAllUsers() {
       setSites(siteRows);
       setActivity(buildActivity(profileRows, siteRows));
       setSecurityAlerts(buildSecurityAlerts(profileRows, siteRows));
+      setStatusIncidents((incidentRows ?? []) as AdminStatusIncident[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch users");
     } finally {
@@ -230,6 +265,42 @@ export function useAllUsers() {
     return { error: null };
   };
 
+  const createStatusIncident = async (incident: StatusIncidentInput) => {
+    const { error: insertError } = await supabase
+      .from("status_incidents")
+      .insert({
+        title: incident.title,
+        service: incident.service,
+        status: incident.status,
+        severity: incident.severity,
+        description: incident.description,
+        started_at: incident.started_at || new Date().toISOString(),
+        resolved_at: incident.status === "resolved" ? incident.resolved_at || new Date().toISOString() : null,
+      });
+
+    if (insertError) return { error: insertError.message };
+    await fetchAllUsers();
+    return { error: null };
+  };
+
+  const updateStatusIncident = async (incidentId: string, patch: Partial<StatusIncidentInput>) => {
+    const { error: updateError } = await supabase
+      .from("status_incidents")
+      .update(patch)
+      .eq("id", incidentId);
+
+    if (updateError) return { error: updateError.message };
+    await fetchAllUsers();
+    return { error: null };
+  };
+
+  const resolveStatusIncident = async (incidentId: string) => {
+    return updateStatusIncident(incidentId, {
+      status: "resolved",
+      resolved_at: new Date().toISOString(),
+    });
+  };
+
   const statusCounts = SITE_STATUSES.reduce((acc, status) => {
     acc[status] = sites.filter((site) => site.status === status).length;
     return acc;
@@ -243,12 +314,16 @@ export function useAllUsers() {
     sites,
     activity,
     securityAlerts,
+    statusIncidents,
     loading,
     error,
     statusCounts,
     totalStorageBytes,
     proxmoxAttachedSites,
     updateUserPlan,
+    createStatusIncident,
+    updateStatusIncident,
+    resolveStatusIncident,
     refetch: fetchAllUsers,
   };
 }
