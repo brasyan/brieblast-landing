@@ -4,12 +4,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { forgotPasswordSchema, type ForgotPasswordFormData } from "@/lib/validations";
+import TurnstileWidget from "@/components/TurnstileWidget";
 
 export default function ForgotPasswordPage() {
   const { resetPassword } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileError, setTurnstileError] = useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
   const {
     register,
@@ -21,10 +26,23 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setServerError(null);
+
+    if (!turnstileSiteKey) {
+      setTurnstileError("Security check is not configured.");
+      return;
+    }
+
+    if (!turnstileToken) {
+      setTurnstileError("Please complete the security check.");
+      return;
+    }
+
     setIsSubmitting(true);
-    const { error } = await resetPassword(data.email);
+    const { error } = await resetPassword(data.email, turnstileToken);
     if (error) {
       setServerError(error);
+      setTurnstileToken(null);
+      setTurnstileKey((previous) => previous + 1);
     } else {
       setEmailSent(true);
     }
@@ -103,9 +121,30 @@ export default function ForgotPasswordPage() {
               )}
             </div>
 
+            <TurnstileWidget
+              key={turnstileKey}
+              siteKey={turnstileSiteKey}
+              className="flex justify-center"
+              onVerify={(token) => {
+                setTurnstileToken(token);
+                setTurnstileError(null);
+              }}
+              onExpire={() => {
+                setTurnstileToken(null);
+                setTurnstileError("Security check expired. Please complete it again.");
+              }}
+              onError={(message) => {
+                setTurnstileToken(null);
+                setTurnstileError(message);
+              }}
+            />
+            {turnstileError && (
+              <p className="text-destructive text-xs">{turnstileError}</p>
+            )}
+
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !turnstileToken || !turnstileSiteKey}
               className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100"
             >
               {isSubmitting ? "Sending..." : "Send Reset Link"}
