@@ -11,36 +11,36 @@ const HeroSection = () => {
 
       {/* Content */}
       <div className="relative z-10 text-center max-w-4xl mx-auto">
-        <div className="inline-block mb-6 px-4 py-2 rounded-full border border-primary/30 bg-primary/10 animate-pulse-glow">
-          <span className="text-primary font-meme text-sm md:text-base">🧀 Now with 69% more uptime* 🧀</span>
+        <div className="inline-block mb-4 sm:mb-6 px-3 sm:px-4 py-2 rounded-full border border-primary/30 bg-primary/10 animate-pulse-glow">
+          <span className="text-primary font-meme text-xs sm:text-sm md:text-base">🧀 Now with 69% more uptime* 🧀</span>
         </div>
 
-        <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6">
+        <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6">
           <span className="text-gradient-cheese">Brie</span>
           <span className="text-foreground">Hosting</span>
           <span className="text-secondary">.be</span>
         </h1>
 
-        <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-4 font-meme">
+        <p className="text-base sm:text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-4 font-meme">
           The hosting that's so gouda, your website will melt... in a good way. 🫕
         </p>
 
-        <p className="text-sm text-muted-foreground mb-10 font-meme">
+        <p className="text-xs sm:text-sm text-muted-foreground mb-8 sm:mb-10 font-meme">
           *compared to hosting your site on a literal wheel of cheese
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <a href="#pricing" className="px-8 py-4 rounded-lg bg-primary text-primary-foreground font-bold text-lg glow-cheese hover:scale-105 transition-transform">
-            Get Started, Nerd 🚀
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
+          <a href="#pricing" className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-lg bg-primary text-primary-foreground font-bold text-base sm:text-lg glow-cheese hover:scale-105 transition-transform text-center">
+            Get Started 🚀
           </a>
-          <a href="#pricing" className="px-8 py-4 rounded-lg border border-secondary text-secondary font-bold text-lg hover:bg-secondary/10 transition-colors">
-            View Pricing 💸
+          <a href="#pricing" className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-lg border border-secondary text-secondary font-bold text-base sm:text-lg hover:bg-secondary/10 transition-colors text-center">
+            Pricing 💸
           </a>
         </div>
 
-        <div className="mt-16 flex items-center justify-center gap-8 text-muted-foreground text-sm">
+        <div className="mt-12 sm:mt-16 flex items-center justify-center gap-4 sm:gap-8 text-muted-foreground text-xs sm:text-sm">
           <span>✅ No BS</span>
-          <span>✅ Actually Fast</span>
+          <span className="hidden sm:inline">✅ Actually Fast</span>
           <span>✅ Belgian Quality™</span>
         </div>
       </div>

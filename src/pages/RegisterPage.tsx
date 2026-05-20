@@ -90,23 +90,23 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-6">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <Link to="/" className="block text-center mb-8">
-          <span className="font-bold text-3xl">
+        <Link to="/" className="block text-center mb-6 sm:mb-8">
+          <span className="font-bold text-2xl sm:text-3xl">
             <span className="text-gradient-cheese">Brie</span>
             <span className="text-foreground">Hosting</span>
           </span>
         </Link>
 
         {/* Card */}
-        <div className="bg-card border border-border rounded-xl p-8">
-          <h1 className="text-2xl font-bold text-foreground text-center mb-2">
+        <div className="bg-card border border-border rounded-xl p-4 sm:p-8">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground text-center mb-2">
             Create an account 🚀
           </h1>
           <p className="text-muted-foreground text-center text-sm mb-6">
-            Join the cheesiest hosting on the internet. New accounts require two-factor authentication.
+            Join the cheesiest hosting on the internet.
           </p>
 
           {serverError && (
@@ -167,7 +167,7 @@ export default function RegisterPage() {
               )}
             </div>
 
-            <ul className="text-xs text-muted-foreground space-y-1">
+            <ul className="text-xs sm:text-sm text-muted-foreground space-y-1">
               <li>• At least 8 characters</li>
               <li>• One uppercase letter</li>
               <li>• One number</li>
@@ -198,7 +198,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={isSubmitting || !turnstileToken || !turnstileSiteKey}
-              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100"
+              className="w-full py-3 sm:py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100"
             >
               {isSubmitting ? "Creating account..." : "Create Account 🧀"}
             </button>

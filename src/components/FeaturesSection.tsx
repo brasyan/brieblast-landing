@@ -47,13 +47,13 @@ const features = [
 
 const FeaturesSection = () => {
   return (
-    <section className="py-24 px-4 relative" id="features">
+    <section className="py-16 sm:py-24 px-4 relative" id="features">
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
+        <div className="text-center mb-12 sm:mb-16">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold mb-4">
             Why We're <span className="text-gradient-cheese">Built Different</span>
           </h2>
-          <p className="text-muted-foreground text-lg font-meme max-w-xl mx-auto">
+          <p className="text-muted-foreground text-sm sm:text-lg font-meme max-w-xl mx-auto">
             Other hosts promise the moon. We deliver the whole cheese wheel. 🌕
           </p>
         </div>

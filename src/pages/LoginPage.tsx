@@ -59,19 +59,19 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-6">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <Link to="/" className="block text-center mb-8">
-          <span className="font-bold text-3xl">
+        <Link to="/" className="block text-center mb-6 sm:mb-8">
+          <span className="font-bold text-2xl sm:text-3xl">
             <span className="text-gradient-cheese">Brie</span>
             <span className="text-foreground">Hosting</span>
           </span>
         </Link>
 
         {/* Card */}
-        <div className="bg-card border border-border rounded-xl p-8 glow-cheese/10">
-          <h1 className="text-2xl font-bold text-foreground text-center mb-2">
+        <div className="bg-card border border-border rounded-xl p-4 sm:p-8 glow-cheese/10">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground text-center mb-2">
             Welcome back 🧀
           </h1>
           <p className="text-muted-foreground text-center text-sm mb-6">
@@ -93,7 +93,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                className="w-full px-3 py-2 bg-background border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-3 py-2.5 sm:py-2 bg-background border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="cheese@briehosting.be"
                 {...register("email")}
               />
@@ -118,7 +118,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                className="w-full px-3 py-2 bg-background border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-3 py-2.5 sm:py-2 bg-background border border-input rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 placeholder="••••••••"
                 {...register("password")}
               />
@@ -151,7 +151,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting || !turnstileToken || !turnstileSiteKey}
-              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100"
+              className="w-full py-3 sm:py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm hover:scale-[1.02] transition-transform disabled:opacity-50 disabled:hover:scale-100"
             >
               {isSubmitting ? "Signing in..." : "Sign In 🧀"}
             </button>
