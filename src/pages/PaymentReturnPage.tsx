@@ -29,6 +29,7 @@ const PaymentReturnPage = () => {
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   // Refs so the poll loop's setTimeout chain can read the latest values
   // without re-creating the loop on every state change.
@@ -45,12 +46,20 @@ const PaymentReturnPage = () => {
         return;
       }
     } catch (err) {
-      // 404 right after a redirect can happen if the user reloads the page
-      // with a stale intent id (or if the row was deleted). Surface it but
-      // keep polling for a bit in case the row just hasn't replicated yet.
       const msg = err instanceof BriehostApiError ? err.message : String(err);
       setError(msg);
-      // Hard-stop on 404 — no point waiting for a row that doesn't exist.
+
+      // 401: session dropped during the Stripe round-trip (rare browser
+      // quirk). Show a friendly sign-in prompt rather than spinning forever
+      // — the webhook has already flipped the plan independently.
+      if (err instanceof BriehostApiError && err.status === 401) {
+        setNeedsAuth(true);
+        stopRef.current = true;
+        return;
+      }
+
+      // 404: stale intent id or row deleted. Hard-stop — no point waiting
+      // for a row that doesn't exist.
       if (err instanceof BriehostApiError && err.status === 404) {
         stopRef.current = true;
         return;
@@ -99,7 +108,30 @@ const PaymentReturnPage = () => {
 
       <main className="pt-28 pb-16 px-4">
         <section className="max-w-2xl mx-auto rounded-2xl border border-border bg-card/50 p-8 md:p-12 text-center">
-          {stillPolling && (
+          {needsAuth && (
+            <>
+              <div className="text-6xl mb-4">🔐</div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-3">
+                Sign in to confirm
+              </h1>
+              <p className="text-muted-foreground mb-2">
+                Your payment likely went through — Stripe just told us so.
+                We need you signed in to show the final status and your new plan.
+              </p>
+              <p className="text-xs text-muted-foreground mb-6">
+                (Your plan flips automatically when Stripe's webhook lands,
+                whether you stay on this page or not.)
+              </p>
+              <Link
+                to="/login"
+                className="inline-block px-6 py-3 rounded-lg bg-primary text-primary-foreground font-bold hover:scale-105 transition-transform"
+              >
+                Sign in
+              </Link>
+            </>
+          )}
+
+          {!needsAuth && stillPolling && (
             <>
               <div className="inline-block animate-spin text-5xl mb-4">🧀</div>
               <h1 className="text-3xl md:text-4xl font-bold mb-3">
