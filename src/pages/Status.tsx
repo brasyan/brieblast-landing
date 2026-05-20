@@ -170,7 +170,7 @@ function buildServices(summary: PublicStatusSummary): Service[] {
 }
 
 function formatUpdatedAt(summary: PublicStatusSummary) {
-  const rawDate = summary.sites.lastUpdated || summary.generatedAt;
+  const rawDate = summary.generatedAt;
   if (!rawDate) return "Waiting for live status data";
   return new Date(rawDate).toUTCString();
 }
