@@ -85,7 +85,7 @@ describe("DashboardPage manage modal", () => {
     mockRefetchSites.mockClear();
   });
 
-  it("opens manage modal and saves updated site name/domain", async () => {
+  it("shows read-only site identity and still saves manage modal", async () => {
     render(
       <MemoryRouter>
         <DashboardPage />
@@ -95,17 +95,33 @@ describe("DashboardPage manage modal", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Manage" })[0]);
 
     const nameInput = await screen.findByLabelText("Site name");
-    const domainInput = screen.getByLabelText("Domain");
+    const domainInput = screen.getByLabelText("Subdomain");
 
-    fireEvent.change(nameInput, { target: { value: "New Site Name" } });
-    fireEvent.change(domainInput, { target: { value: "new-site" } });
+    expect(nameInput).toBeDisabled();
+    expect(nameInput).toHaveAttribute("readonly");
+    expect(domainInput).toBeDisabled();
+    expect(domainInput).toHaveAttribute("readonly");
+    expect(screen.getByText("To rename or migrate your site, please contact support.")).toBeInTheDocument();
+    expect(screen.getByText("Creation date")).toBeInTheDocument();
+    expect(screen.getByText("Publication status")).toBeInTheDocument();
+    expect(screen.getByText("Published")).toBeInTheDocument();
+    expect(screen.getByText("Last updated")).toBeInTheDocument();
+    expect(screen.getByText("Traffic")).toBeInTheDocument();
+    expect(screen.getByText("Not available yet")).toBeInTheDocument();
+
+    const docsLink = screen.getByRole("link", { name: "Documentation" });
+    const faqLink = screen.getByRole("link", { name: "FAQ" });
+    expect(docsLink).toHaveAttribute("href", expect.stringContaining("site=old-site"));
+    expect(faqLink).toHaveAttribute("href", expect.stringContaining("site=old-site"));
+    expect(screen.getByRole("button", { name: "Contact Support" })).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
       expect(mockFrom).toHaveBeenCalledWith("sites");
       expect(mockUpdate).toHaveBeenCalledWith({
-        name: "New Site Name",
-        subdomain: "new-site",
+        name: "Old Site Name",
+        subdomain: "old-site",
       });
       expect(mockRefetchSites).toHaveBeenCalledTimes(1);
     });

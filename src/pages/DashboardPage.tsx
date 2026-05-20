@@ -30,6 +30,7 @@ import {
   Wifi,
   ExternalLink,
   Copy,
+  Lock,
 } from "lucide-react";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -73,6 +74,32 @@ const STATUS_LABEL: Record<SiteStatus, string> = {
 };
 
 const formatSiteSize = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+type SiteWithTraffic = Site & {
+  visits_this_month?: number | null;
+  visits_this_week?: number | null;
+  monthly_visits?: number | null;
+  weekly_visits?: number | null;
+};
+
+const getTrafficSummary = (site: Site) => {
+  const trafficSite = site as SiteWithTraffic;
+  const visitsThisMonth = trafficSite.visits_this_month ?? trafficSite.monthly_visits;
+  const visitsThisWeek = trafficSite.visits_this_week ?? trafficSite.weekly_visits;
+
+  if (typeof visitsThisMonth === "number" && typeof visitsThisWeek === "number") {
+    return `${visitsThisMonth.toLocaleString()} this month · ${visitsThisWeek.toLocaleString()} this week`;
+  }
+
+  if (typeof visitsThisMonth === "number") {
+    return `${visitsThisMonth.toLocaleString()} this month`;
+  }
+
+  if (typeof visitsThisWeek === "number") {
+    return `${visitsThisWeek.toLocaleString()} this week`;
+  }
+
+  return "Not available yet";
+};
 
 const getPublicUrl = (site: Site) => (
   site.subdomain ? `https://${site.subdomain}.${PUBLIC_DOMAIN}` : null
@@ -1434,11 +1461,11 @@ export default function DashboardPage() {
       </Dialog>
 
       <Dialog open={manageSiteId !== null} onOpenChange={(open) => !open && closeManageDialog()}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Manage Site</DialogTitle>
             <DialogDescription>
-              Update editable settings for this site.
+              Review site details and management resources.
             </DialogDescription>
           </DialogHeader>
 
@@ -1450,39 +1477,112 @@ export default function DashboardPage() {
                 void handleSaveManage();
               }}
             >
-              <div>
-                <label htmlFor="manage-site-name" className="mb-1 block text-sm font-semibold text-foreground">
-                  Site name
-                </label>
-                <input
-                  id="manage-site-name"
-                  type="text"
-                  value={manageForm.name}
-                  onChange={(event) => setManageForm((current) => ({ ...current, name: event.target.value }))}
-                  className="w-full rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40"
-                  placeholder="My awesome site"
-                  disabled={manageSaving}
-                />
+              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+                To rename or migrate your site, please contact support.
               </div>
 
-              <div>
-                <label htmlFor="manage-site-domain" className="mb-1 block text-sm font-semibold text-foreground">
-                  Domain
-                </label>
-                <div className="flex items-stretch overflow-hidden rounded-lg border border-border bg-background/60 focus-within:ring-2 focus-within:ring-yellow-500/40">
-                  <input
-                    id="manage-site-domain"
-                    type="text"
-                    value={manageForm.domain}
-                    onChange={(event) => setManageForm((current) => ({ ...current, domain: event.target.value }))}
-                    className="w-full bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
-                    placeholder="your-site"
-                    disabled={manageSaving}
-                  />
-                  <span className="flex items-center border-l border-border bg-muted/30 px-3 text-xs text-muted-foreground">
-                    .{PUBLIC_DOMAIN}
-                  </span>
+              <div className="grid gap-4 md:grid-cols-[1.5fr_1fr]">
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="manage-site-name" className="mb-1 block text-sm font-semibold text-foreground">
+                      Site name
+                    </label>
+                    <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                      <Lock className="h-4 w-4 shrink-0" />
+                      <input
+                        id="manage-site-name"
+                        type="text"
+                        value={manageForm.name}
+                        readOnly
+                        disabled
+                        className="w-full cursor-not-allowed bg-transparent text-muted-foreground focus-visible:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="manage-site-domain" className="mb-1 block text-sm font-semibold text-foreground">
+                      Subdomain
+                    </label>
+                    <div className="flex items-stretch overflow-hidden rounded-lg border border-border bg-muted/40">
+                      <input
+                        id="manage-site-domain"
+                        type="text"
+                        value={manageForm.domain}
+                        readOnly
+                        disabled
+                        className="w-full cursor-not-allowed bg-transparent px-3 py-2 text-sm text-muted-foreground focus-visible:outline-none"
+                      />
+                      <span className="flex items-center border-l border-border bg-muted/50 px-3 text-xs text-muted-foreground">
+                        .{PUBLIC_DOMAIN}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-background/60 p-4 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Creation date</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">
+                        {new Date(selectedManageSite.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Publication status</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">
+                        {selectedManageSite.status === "live" ? "Published" : "Draft"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Last updated</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">
+                        {new Date(selectedManageSite.updated_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Traffic</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">{getTrafficSummary(selectedManageSite)}</p>
+                    </div>
+                  </div>
                 </div>
+
+                <aside className="space-y-3 rounded-lg border border-border bg-background/60 p-4">
+                  <h3 className="text-sm font-semibold text-foreground">Resources</h3>
+                  <a
+                    href={`https://docs.briehosting.be/?site=${encodeURIComponent(selectedManageSite.subdomain ?? selectedManageSite.id)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:border-yellow-400/70"
+                  >
+                    Documentation
+                    <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  </a>
+                  <a
+                    href={`https://docs.briehosting.be/faq?site=${encodeURIComponent(selectedManageSite.subdomain ?? selectedManageSite.id)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground transition hover:border-yellow-400/70"
+                  >
+                    FAQ
+                    <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTicketForm((current) => ({
+                        email: current.email || user?.email || "",
+                        subject: current.subject || `Site support request: ${selectedManageSite.name}`,
+                        message:
+                          current.message ||
+                          `Site: ${selectedManageSite.name}\nSubdomain: ${selectedManageSite.subdomain ?? "not set"}\n\nPlease help with this site.`,
+                      }));
+                      closeManageDialog();
+                      setSupportTicketOpen(true);
+                    }}
+                    className="w-full rounded-lg border border-yellow-500/40 bg-yellow-500/15 px-3 py-2 text-sm font-medium text-yellow-200 transition hover:border-yellow-400/70 hover:bg-yellow-500/20"
+                  >
+                    Contact Support
+                  </button>
+                </aside>
               </div>
 
               {manageError && (
