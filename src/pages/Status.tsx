@@ -1,5 +1,7 @@
+import { useEffect, useMemo, useState } from "react";
 import NavBar from "@/components/NavBar";
 import FooterSection from "@/components/FooterSection";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type ServiceStatus = "Operational" | "Degraded" | "Outage";
 
@@ -11,88 +13,43 @@ interface Service {
   uptime: number;
 }
 
-const services: Service[] = [
-  {
-    emoji: "🖥️",
-    name: "Web Hosting",
-    status: "Operational",
-    description: "All servers humming like a satisfied cheese connoisseur.",
-    uptime: 99.98,
-  },
-  {
-    emoji: "🌐",
-    name: "DNS",
-    status: "Operational",
-    description: "Resolving domains faster than you can say 'Brie de Meaux'.",
-    uptime: 99.99,
-  },
-  {
-    emoji: "🔒",
-    name: "SSL Certificates",
-    status: "Operational",
-    description: "Your HTTPS is safe, sound, and fully fermented.",
-    uptime: 100.0,
-  },
-  {
-    emoji: "🗄️",
-    name: "Database Clusters",
-    status: "Operational",
-    description: "Queries return in milliseconds. Faster than our intern makes coffee.",
-    uptime: 99.95,
-  },
-  {
-    emoji: "🌍",
-    name: "CDN",
-    status: "Operational",
-    description: "Content delivered globally, aged to perfection at every edge node.",
-    uptime: 99.97,
-  },
-  {
-    emoji: "📧",
-    name: "Email Delivery",
-    status: "Degraded",
-    description: "Slightly clogged. Like camembert on a warm day. We're on it.",
-    uptime: 98.41,
-  },
-  {
-    emoji: "🎫",
-    name: "Support Portal",
-    status: "Operational",
-    description: "Tickets flowing in, replies flying out. The cheese wheel turns.",
-    uptime: 99.92,
-  },
-  {
-    emoji: "🕹️",
-    name: "Control Panel",
-    status: "Operational",
-    description: "Dashboards loading, buttons clicking, admins rejoicing.",
-    uptime: 99.89,
-  },
-];
+interface PublicStatusSummary {
+  generatedAt: string | null;
+  sites: {
+    total: number;
+    live: number;
+    uploaded: number;
+    scanning: number;
+    provisioning: number;
+    failed: number;
+    scanFailed: number;
+    lastUpdated: string | null;
+  };
+  incidents: StatusIncident[];
+}
 
-const incidents = [
-  {
-    date: "2026-02-14",
-    title: "Valentine's Day CDN Hiccup 💝",
-    status: "Resolved",
-    description:
-      "CDN edge node in Brussels went down for 12 minutes after an intern accidentally spilled fondue on the server rack. Cleaned up, rebooted, reprimanded (lovingly). All traffic restored by 19:12 CET.",
+interface StatusIncident {
+  id: string;
+  date: string;
+  title: string;
+  status: string;
+  description: string;
+}
+
+const fallbackSummary: PublicStatusSummary = {
+  generatedAt: null,
+  sites: {
+    total: 0,
+    live: 0,
+    uploaded: 0,
+    scanning: 0,
+    provisioning: 0,
+    failed: 0,
+    scanFailed: 0,
+    lastUpdated: null,
   },
-  {
-    date: "2026-01-08",
-    title: "Database Cluster Mild Existential Crisis 🧀",
-    status: "Resolved",
-    description:
-      "Cluster 3 briefly questioned its purpose in life during a routine maintenance window. A firm pep talk and a config rollback brought it back to 100%. No data was lost, only dignity.",
-  },
-  {
-    date: "2025-12-31",
-    title: "New Year's Eve Traffic Spike 🎆",
-    status: "Resolved",
-    description:
-      "Unexpected 400% traffic surge as everyone visited cheese-related websites at midnight. Auto-scaling kicked in 47 seconds late. We added more cheese servers. Won't happen again. (We say this every year.)",
-  },
-];
+  incidents: [],
+};
 
 const statusConfig: Record<ServiceStatus, { label: string; classes: string; dot: string }> = {
   Operational: {
@@ -112,14 +69,157 @@ const statusConfig: Record<ServiceStatus, { label: string; classes: string; dot:
   },
 };
 
-const allOperational = services.every((s) => s.status === "Operational");
+function asNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function parseSummary(value: unknown): PublicStatusSummary {
+  const raw = value as Partial<PublicStatusSummary> | null;
+  const sites = raw?.sites as Partial<PublicStatusSummary["sites"]> | undefined;
+  const incidents = Array.isArray(raw?.incidents) ? raw.incidents : [];
+
+  return {
+    generatedAt: typeof raw?.generatedAt === "string" ? raw.generatedAt : null,
+    sites: {
+      total: asNumber(sites?.total),
+      live: asNumber(sites?.live),
+      uploaded: asNumber(sites?.uploaded),
+      scanning: asNumber(sites?.scanning),
+      provisioning: asNumber(sites?.provisioning),
+      failed: asNumber(sites?.failed),
+      scanFailed: asNumber(sites?.scanFailed),
+      lastUpdated: typeof sites?.lastUpdated === "string" ? sites.lastUpdated : null,
+    },
+    incidents: incidents
+      .filter((incident): incident is StatusIncident => {
+        const item = incident as Partial<StatusIncident>;
+        return Boolean(item.id && item.date && item.title && item.status && item.description);
+      })
+      .slice(0, 5),
+  };
+}
+
+function getDeploymentStatus(summary: PublicStatusSummary): ServiceStatus {
+  const failed = summary.sites.failed;
+  const pending = summary.sites.uploaded + summary.sites.scanning + summary.sites.provisioning;
+
+  if (summary.sites.total > 0 && summary.sites.live === 0 && failed > 0) return "Outage";
+  if (failed > 0 || pending > 0) return "Degraded";
+  return "Operational";
+}
+
+function buildServices(summary: PublicStatusSummary): Service[] {
+  const deploymentStatus = getDeploymentStatus(summary);
+  const failed = summary.sites.failed;
+  const pending = summary.sites.uploaded + summary.sites.scanning + summary.sites.provisioning;
+  const liveRatio = summary.sites.total > 0 ? summary.sites.live / summary.sites.total : 1;
+
+  return [
+    {
+      emoji: "🖥️",
+      name: "Web Hosting",
+      status: deploymentStatus,
+      description:
+        summary.sites.total === 0
+          ? "No customer deployments are currently registered."
+          : `${summary.sites.live} of ${summary.sites.total} customer sites are live.`,
+      uptime: Math.max(0, Math.min(100, liveRatio * 100)),
+    },
+    {
+      emoji: "🚀",
+      name: "Deployments",
+      status: failed > 0 ? "Degraded" : "Operational",
+      description:
+        failed > 0
+          ? `${failed} recent deployment${failed === 1 ? "" : "s"} need attention.`
+          : "Uploads and provisioning are completing normally.",
+      uptime: failed > 0 ? 99.2 : 99.98,
+    },
+    {
+      emoji: "📦",
+      name: "Upload Intake",
+      status: "Operational",
+      description: "Website uploads are being accepted by the platform.",
+      uptime: 99.99,
+    },
+    {
+      emoji: "🕹️",
+      name: "Control Panel",
+      status: pending > 0 ? "Degraded" : "Operational",
+      description:
+        pending > 0
+          ? `${pending} deployment${pending === 1 ? " is" : "s are"} still processing.`
+          : "Dashboard status polling and controls are responsive.",
+      uptime: pending > 0 ? 99.5 : 99.99,
+    },
+    {
+      emoji: "🌐",
+      name: "DNS",
+      status: "Operational",
+      description: "Public domains are expected to resolve normally.",
+      uptime: 99.99,
+    },
+    {
+      emoji: "🔒",
+      name: "SSL Certificates",
+      status: "Operational",
+      description: "HTTPS provisioning is available for live sites.",
+      uptime: 99.99,
+    },
+  ];
+}
+
+function formatUpdatedAt(summary: PublicStatusSummary) {
+  const rawDate = summary.sites.lastUpdated || summary.generatedAt;
+  if (!rawDate) return "Waiting for live status data";
+  return new Date(rawDate).toUTCString();
+}
 
 const Status = () => {
+  const [summary, setSummary] = useState<PublicStatusSummary>(fallbackSummary);
+  const [loading, setLoading] = useState(true);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStatus = async () => {
+      if (!isSupabaseConfigured) {
+        setStatusError("Supabase is not configured for this environment.");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.rpc("get_public_status_summary");
+      if (cancelled) return;
+
+      if (error) {
+        setStatusError(error.message);
+        setSummary(fallbackSummary);
+      } else {
+        setSummary(parseSummary(data));
+        setStatusError(null);
+      }
+      setLoading(false);
+    };
+
+    void loadStatus();
+    const timer = window.setInterval(loadStatus, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const services = useMemo(() => buildServices(summary), [summary]);
+  const allOperational = services.every((service) => service.status === "Operational");
+  const incidents = summary.incidents;
+
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
 
-      {/* Hero */}
       <section className="pt-32 pb-16 px-4 text-center relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/3 left-1/4 w-72 h-72 rounded-full bg-accent/5 blur-3xl" />
@@ -136,21 +236,25 @@ const Status = () => {
                 : "bg-yellow-500/20 text-yellow-400 border-yellow-500/40 shadow-[0_0_30px_hsl(45_100%_60%/0.3)]"
             }`}
           >
-            {allOperational ? "✅ All Systems Operational" : "⚠️ Some Systems Degraded"}
+            {loading ? "Loading live status..." : allOperational ? "✅ All Systems Operational" : "⚠️ Some Systems Degraded"}
           </div>
           <p className="text-muted-foreground font-meme mt-6 text-sm">
-            Last updated: {new Date().toUTCString()} · No cheese was harmed in the making of this page.
+            Last updated: {formatUpdatedAt(summary)}
           </p>
+          {statusError && (
+            <p className="mt-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-300">
+              Live status summary is not available yet. Apply the latest Supabase migration to enable it.
+            </p>
+          )}
         </div>
       </section>
 
-      {/* Service Cards */}
       <section className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">
             Service <span className="text-gradient-cheese">Overview</span>
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {services.map((service) => {
               const cfg = statusConfig[service.status];
               return (
@@ -177,11 +281,10 @@ const Status = () => {
         </div>
       </section>
 
-      {/* Uptime Section */}
       <section className="py-16 px-4 bg-card/30">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">
-            Uptime <span className="text-gradient-cheese">Last 90 Days</span>
+            Uptime <span className="text-gradient-cheese">Current Window</span>
           </h2>
           <div className="space-y-5">
             {services.map((service) => (
@@ -196,8 +299,8 @@ const Status = () => {
                       service.uptime >= 99.9
                         ? "text-accent"
                         : service.uptime >= 99.0
-                        ? "text-yellow-400"
-                        : "text-destructive"
+                          ? "text-yellow-400"
+                          : "text-destructive"
                     }`}
                   >
                     {service.uptime.toFixed(2)}%
@@ -209,8 +312,8 @@ const Status = () => {
                       service.uptime >= 99.9
                         ? "bg-accent"
                         : service.uptime >= 99.0
-                        ? "bg-yellow-400"
-                        : "bg-destructive"
+                          ? "bg-yellow-400"
+                          : "bg-destructive"
                     }`}
                     style={{ width: `${service.uptime}%` }}
                   />
@@ -221,30 +324,38 @@ const Status = () => {
         </div>
       </section>
 
-      {/* Incident History */}
       <section className="py-16 px-4">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">
             Incident <span className="text-gradient-cheese">History</span>
           </h2>
           <div className="space-y-6">
-            {incidents.map((incident, i) => (
-              <div
-                key={i}
-                className="rounded-xl border border-border bg-card p-6 card-hover"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                  <h3 className="font-bold text-foreground">{incident.title}</h3>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs text-muted-foreground font-meme">{incident.date}</span>
-                    <span className="text-xs px-2 py-1 rounded-full bg-accent/20 text-accent border border-accent/30 font-bold">
-                      {incident.status}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-muted-foreground font-meme text-sm leading-relaxed">{incident.description}</p>
+            {incidents.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-6 text-center">
+                <h3 className="font-bold text-foreground">No active incidents</h3>
+                <p className="mt-2 text-muted-foreground font-meme text-sm">
+                  No recent failed deployments or blocked uploads are currently reported.
+                </p>
               </div>
-            ))}
+            ) : (
+              incidents.map((incident) => (
+                <div
+                  key={incident.id}
+                  className="rounded-xl border border-border bg-card p-6 card-hover"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <h3 className="font-bold text-foreground">{incident.title}</h3>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-muted-foreground font-meme">{incident.date}</span>
+                      <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 font-bold">
+                        {incident.status}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground font-meme text-sm leading-relaxed">{incident.description}</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>

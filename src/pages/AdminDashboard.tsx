@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { Users, HardDrive, Globe, LogOut, BarChart3, Activity, ShieldAlert, Server } from "lucide-react";
+import { Users, HardDrive, Globe, LogOut, BarChart3, Activity, ShieldAlert, Server, Megaphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAllUsers } from "@/hooks/useAllUsers";
+import type { StatusIncidentSeverity, StatusIncidentStatus } from "@/hooks/useAllUsers";
 import type { PlanId } from "@/lib/plans";
 import { useNavigate } from "react-router-dom";
 import {
@@ -34,8 +35,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const PLAN_OPTIONS: PlanId[] = ["none", "smol_brie", "thicc_brie", "mega_brie", "admin"];
+const INCIDENT_STATUS_OPTIONS: StatusIncidentStatus[] = ["investigating", "identified", "monitoring", "resolved"];
+const INCIDENT_SEVERITY_OPTIONS: StatusIncidentSeverity[] = ["notice", "degraded", "outage"];
+
+const defaultIncidentForm = {
+  title: "",
+  service: "Platform",
+  status: "investigating" as StatusIncidentStatus,
+  severity: "degraded" as StatusIncidentSeverity,
+  description: "",
+};
 
 const AdminDashboard = () => {
   const { signOut } = useAuth();
@@ -46,17 +60,24 @@ const AdminDashboard = () => {
     sites,
     activity,
     securityAlerts,
+    statusIncidents,
     loading,
     error,
     statusCounts,
     totalStorageBytes,
     proxmoxAttachedSites,
     updateUserPlan,
+    createStatusIncident,
+    updateStatusIncident,
+    resolveStatusIncident,
   } = useAllUsers();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<PlanId | "">("");
   const [savingPlan, setSavingPlan] = useState(false);
   const [selectedSecurityAlertId, setSelectedSecurityAlertId] = useState<string | null>(null);
+  const [incidentForm, setIncidentForm] = useState(defaultIncidentForm);
+  const [submittingIncident, setSubmittingIncident] = useState(false);
+  const [updatingIncidentId, setUpdatingIncidentId] = useState<string | null>(null);
 
   const handleLogout = async () => {
     await signOut();
@@ -113,6 +134,78 @@ const AdminDashboard = () => {
     toast({
       title: "Plan updated",
       description: `User plan changed to ${selectedPlan.replace("_", " ")}.`,
+    });
+  };
+
+  const handleCreateIncident = async () => {
+    if (!incidentForm.title.trim() || !incidentForm.service.trim() || !incidentForm.description.trim()) {
+      toast({
+        title: "Missing incident details",
+        description: "Add a title, service, and description before publishing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmittingIncident(true);
+    const { error: createError } = await createStatusIncident({
+      ...incidentForm,
+      title: incidentForm.title.trim(),
+      service: incidentForm.service.trim(),
+      description: incidentForm.description.trim(),
+    });
+    setSubmittingIncident(false);
+
+    if (createError) {
+      toast({
+        title: "Failed to publish incident",
+        description: createError,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIncidentForm(defaultIncidentForm);
+    toast({
+      title: "Incident published",
+      description: "The public status page will show it on the next refresh.",
+    });
+  };
+
+  const handleUpdateIncidentStatus = async (incidentId: string, status: StatusIncidentStatus) => {
+    setUpdatingIncidentId(incidentId);
+    const { error: updateError } = await updateStatusIncident(incidentId, {
+      status,
+      resolved_at: status === "resolved" ? new Date().toISOString() : null,
+    });
+    setUpdatingIncidentId(null);
+
+    if (updateError) {
+      toast({
+        title: "Failed to update incident",
+        description: updateError,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResolveIncident = async (incidentId: string) => {
+    setUpdatingIncidentId(incidentId);
+    const { error: resolveError } = await resolveStatusIncident(incidentId);
+    setUpdatingIncidentId(null);
+
+    if (resolveError) {
+      toast({
+        title: "Failed to resolve incident",
+        description: resolveError,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Incident resolved",
+      description: "The public status page now marks it as resolved.",
     });
   };
 
@@ -205,6 +298,7 @@ const AdminDashboard = () => {
         <Tabs defaultValue="clients" className="space-y-4">
           <TabsList>
             <TabsTrigger value="clients">Clients</TabsTrigger>
+            <TabsTrigger value="status">Public Status</TabsTrigger>
             <TabsTrigger value="security">Security Alerts</TabsTrigger>
             <TabsTrigger value="activity">Activity Logs</TabsTrigger>
             <TabsTrigger value="resources">Proxmox Resources</TabsTrigger>
@@ -403,6 +497,194 @@ const AdminDashboard = () => {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="status" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Megaphone className="w-5 h-5" />
+                  Public Status Incidents
+                </CardTitle>
+                <CardDescription>
+                  Publish manual incident entries for the public /status page. Security scan failures stay private in Security Alerts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Use this only for platform-facing incidents such as DNS, deployment pipeline, SSL, control panel, or planned maintenance events.
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="incident-title">Title</Label>
+                    <Input
+                      id="incident-title"
+                      value={incidentForm.title}
+                      onChange={(event) => setIncidentForm({ ...incidentForm, title: event.target.value })}
+                      placeholder="Deployment pipeline delays"
+                      maxLength={120}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="incident-service">Service</Label>
+                    <Input
+                      id="incident-service"
+                      value={incidentForm.service}
+                      onChange={(event) => setIncidentForm({ ...incidentForm, service: event.target.value })}
+                      placeholder="Deployments"
+                      maxLength={80}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={incidentForm.status}
+                      onValueChange={(value) => setIncidentForm({ ...incidentForm, status: value as StatusIncidentStatus })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INCIDENT_STATUS_OPTIONS.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status.replace(/_/g, " ")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Severity</Label>
+                    <Select
+                      value={incidentForm.severity}
+                      onValueChange={(value) => setIncidentForm({ ...incidentForm, severity: value as StatusIncidentSeverity })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INCIDENT_SEVERITY_OPTIONS.map((severity) => (
+                          <SelectItem key={severity} value={severity}>
+                            {severity}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2 lg:col-span-2">
+                    <Label htmlFor="incident-description">Description</Label>
+                    <Textarea
+                      id="incident-description"
+                      value={incidentForm.description}
+                      onChange={(event) => setIncidentForm({ ...incidentForm, description: event.target.value })}
+                      placeholder="Describe what is affected, who is impacted, and what the team is doing."
+                      className="min-h-28"
+                      maxLength={2000}
+                    />
+                  </div>
+                </div>
+
+                <Button onClick={handleCreateIncident} disabled={submittingIncident}>
+                  {submittingIncident ? "Publishing..." : "Publish Incident"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Incident History</CardTitle>
+                <CardDescription>
+                  The public status page shows unresolved incidents first, then recent resolved incidents.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {statusIncidents.length === 0 ? (
+                  <div className="rounded-md border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                    No public incidents have been published yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {statusIncidents.map((incident) => (
+                      <div key={incident.id} className="rounded-md border border-border bg-card p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="outline">{incident.service}</Badge>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  incident.severity === "outage"
+                                    ? "border-destructive/40 bg-destructive/10 text-destructive"
+                                    : incident.severity === "degraded"
+                                      ? "border-yellow-500/40 bg-yellow-500/10 text-yellow-600"
+                                      : "border-primary/40 bg-primary/10 text-primary"
+                                }
+                              >
+                                {incident.severity}
+                              </Badge>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  incident.status === "resolved"
+                                    ? "border-accent/40 bg-accent/10 text-accent"
+                                    : "border-yellow-500/40 bg-yellow-500/10 text-yellow-600"
+                                }
+                              >
+                                {incident.status}
+                              </Badge>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-foreground">{incident.title}</h3>
+                              <p className="mt-1 text-sm text-muted-foreground">{incident.description}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Started {formatDistanceToNow(new Date(incident.started_at), { addSuffix: true })}
+                              {incident.resolved_at
+                                ? ` · Resolved ${formatDistanceToNow(new Date(incident.resolved_at), { addSuffix: true })}`
+                                : ""}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 lg:justify-end">
+                            <Select
+                              value={incident.status}
+                              onValueChange={(value) => void handleUpdateIncidentStatus(incident.id, value as StatusIncidentStatus)}
+                              disabled={updatingIncidentId === incident.id}
+                            >
+                              <SelectTrigger className="w-36">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {INCIDENT_STATUS_OPTIONS.map((status) => (
+                                  <SelectItem key={status} value={status}>
+                                    {status}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {incident.status !== "resolved" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void handleResolveIncident(incident.id)}
+                                disabled={updatingIncidentId === incident.id}
+                              >
+                                Resolve
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
