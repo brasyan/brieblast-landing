@@ -61,6 +61,29 @@ VITE_BRIEHOST_API_URL=http://localhost:8000
 # VITE_BRIEHOST_API_KEY=...
 ```
 
+## Site Health Checks
+
+The public `/status` page does not trust `sites.status = 'live'` by itself.
+After applying `supabase/migrations/011_site_health_checks.sql`, a site only
+counts as online when the latest health check is `up` and less than 5 minutes
+old.
+
+Your backend/worker should periodically check each live site or its Proxmox
+container and record the result with the Supabase service-role key:
+
+```sql
+select public.record_site_health_check(
+  'site-id-here',
+  'up',
+  123,
+  200,
+  null
+);
+```
+
+Use status `down` when the site/container is unreachable, and `unknown` when
+the check could not produce a reliable result.
+
 ## Deployment
 
 Build the project with `npm run build` and deploy the generated `dist/` directory to your hosting provider.

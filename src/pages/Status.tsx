@@ -18,12 +18,17 @@ interface PublicStatusSummary {
   sites: {
     total: number;
     live: number;
+    liveConfigured: number;
+    healthy: number;
+    unhealthy: number;
+    unknown: number;
     uploaded: number;
     scanning: number;
     provisioning: number;
     failed: number;
     scanFailed: number;
     lastUpdated: string | null;
+    lastHealthCheck: string | null;
   };
   incidents: StatusIncident[];
 }
@@ -41,12 +46,17 @@ const fallbackSummary: PublicStatusSummary = {
   sites: {
     total: 0,
     live: 0,
+    liveConfigured: 0,
+    healthy: 0,
+    unhealthy: 0,
+    unknown: 0,
     uploaded: 0,
     scanning: 0,
     provisioning: 0,
     failed: 0,
     scanFailed: 0,
     lastUpdated: null,
+    lastHealthCheck: null,
   },
   incidents: [],
 };
@@ -83,12 +93,17 @@ function parseSummary(value: unknown): PublicStatusSummary {
     sites: {
       total: asNumber(sites?.total),
       live: asNumber(sites?.live),
+      liveConfigured: asNumber(sites?.liveConfigured),
+      healthy: asNumber(sites?.healthy),
+      unhealthy: asNumber(sites?.unhealthy),
+      unknown: asNumber(sites?.unknown),
       uploaded: asNumber(sites?.uploaded),
       scanning: asNumber(sites?.scanning),
       provisioning: asNumber(sites?.provisioning),
       failed: asNumber(sites?.failed),
       scanFailed: asNumber(sites?.scanFailed),
       lastUpdated: typeof sites?.lastUpdated === "string" ? sites.lastUpdated : null,
+      lastHealthCheck: typeof sites?.lastHealthCheck === "string" ? sites.lastHealthCheck : null,
     },
     incidents: incidents
       .filter((incident): incident is StatusIncident => {
@@ -100,19 +115,23 @@ function parseSummary(value: unknown): PublicStatusSummary {
 }
 
 function getDeploymentStatus(summary: PublicStatusSummary): ServiceStatus {
-  const failed = summary.sites.failed;
+  const failed = summary.sites.failed + summary.sites.unhealthy;
+  const unknown = summary.sites.unknown;
   const pending = summary.sites.uploaded + summary.sites.scanning + summary.sites.provisioning;
 
   if (summary.sites.total > 0 && summary.sites.live === 0 && failed > 0) return "Outage";
-  if (failed > 0 || pending > 0) return "Degraded";
+  if (failed > 0 || unknown > 0 || pending > 0) return "Degraded";
   return "Operational";
 }
 
 function buildServices(summary: PublicStatusSummary): Service[] {
   const deploymentStatus = getDeploymentStatus(summary);
   const failed = summary.sites.failed;
+  const unhealthy = summary.sites.unhealthy;
+  const unknown = summary.sites.unknown;
   const pending = summary.sites.uploaded + summary.sites.scanning + summary.sites.provisioning;
-  const liveRatio = summary.sites.total > 0 ? summary.sites.live / summary.sites.total : 1;
+  const liveConfigured = summary.sites.liveConfigured || summary.sites.live;
+  const liveRatio = liveConfigured > 0 ? summary.sites.healthy / liveConfigured : 1;
 
   return [
     {
@@ -120,10 +139,22 @@ function buildServices(summary: PublicStatusSummary): Service[] {
       name: "Web Hosting",
       status: deploymentStatus,
       description:
-        summary.sites.total === 0
+        liveConfigured === 0
           ? "No customer deployments are currently registered."
-          : `${summary.sites.live} of ${summary.sites.total} customer sites are live.`,
+          : `${summary.sites.healthy} of ${liveConfigured} live sites passed a recent health check.`,
       uptime: Math.max(0, Math.min(100, liveRatio * 100)),
+    },
+    {
+      emoji: "🩺",
+      name: "Health Checks",
+      status: unhealthy > 0 ? "Outage" : unknown > 0 ? "Degraded" : "Operational",
+      description:
+        unhealthy > 0
+          ? `${unhealthy} live site${unhealthy === 1 ? "" : "s"} failed the latest health check.`
+          : unknown > 0
+            ? `${unknown} live site${unknown === 1 ? "" : "s"} need a fresh health check.`
+            : "All live sites have recent passing health checks.",
+      uptime: liveConfigured > 0 ? Math.max(0, Math.min(100, ((liveConfigured - unhealthy - unknown) / liveConfigured) * 100)) : 100,
     },
     {
       emoji: "🚀",
@@ -141,16 +172,6 @@ function buildServices(summary: PublicStatusSummary): Service[] {
       status: "Operational",
       description: "Website uploads are being accepted by the platform.",
       uptime: 99.99,
-    },
-    {
-      emoji: "🕹️",
-      name: "Control Panel",
-      status: pending > 0 ? "Degraded" : "Operational",
-      description:
-        pending > 0
-          ? `${pending} deployment${pending === 1 ? " is" : "s are"} still processing.`
-          : "Dashboard status polling and controls are responsive.",
-      uptime: pending > 0 ? 99.5 : 99.99,
     },
     {
       emoji: "🌐",
