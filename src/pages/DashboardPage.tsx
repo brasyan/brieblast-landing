@@ -4,7 +4,14 @@ import { useProfile } from "@/hooks/useProfile";
 import { useSites, type Site, type SiteStatus } from "@/hooks/useSites";
 import { ADMIN_PLAN, PLANS, type CustomerPlanId, type PlanId } from "@/lib/plans";
 import { supabase } from "@/lib/supabase";
-import { BriehostApiError, createPaymentIntent, type PaymentProvider } from "@/lib/briehostApi";
+import {
+  BriehostApiError,
+  createPaymentIntent,
+  listPaymentIntents,
+  type PaymentIntent,
+  type PaymentProvider,
+  type PaymentStatusValue,
+} from "@/lib/briehostApi";
 import {
   Activity,
   BarChart3,
@@ -105,6 +112,27 @@ const formatDateTime = (value: string) => new Date(value).toLocaleString();
 const getSupportContext = (site: Site) => encodeURIComponent(site.subdomain ?? site.id);
 const sanitizeSupportText = (value: string) => value.replace(/\s+/g, " ").trim();
 
+const PAYMENT_STATUS_STYLES: Record<PaymentStatusValue, string> = {
+  pending: "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30",
+  succeeded: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+  failed: "bg-destructive/20 text-destructive border border-destructive/30",
+  cancelled: "bg-muted text-muted-foreground border border-muted",
+};
+
+const PAYMENT_STATUS_LABEL: Record<PaymentStatusValue, string> = {
+  pending: "Pending",
+  succeeded: "Paid",
+  failed: "Failed",
+  cancelled: "Cancelled",
+};
+
+const formatAmount = (cents: number, currency: string) => {
+  const value = (cents / 100).toFixed(2);
+  // Always EUR for our flows today; fall back to symbol-prefix style for any
+  // other currency we might add later.
+  return currency.toUpperCase() === "EUR" ? `€${value}` : `${value} ${currency.toUpperCase()}`;
+};
+
 const getPublicUrl = (site: Site) => (
   site.subdomain ? `https://${site.subdomain}.${PUBLIC_DOMAIN}` : null
 );
@@ -154,6 +182,38 @@ export default function DashboardPage() {
   const [manageForm, setManageForm] = useState({ name: "", domain: "" });
   const [manageError, setManageError] = useState<string | null>(null);
   const [manageSaving, setManageSaving] = useState(false);
+
+  // Payment history — fetched once on mount. Re-fetched whenever the user
+  // returns to the dashboard (handled implicitly by component remount). If
+  // we ever want auto-refresh on focus, add a `visibilitychange` listener.
+  const [paymentHistory, setPaymentHistory] = useState<PaymentIntent[]>([]);
+  const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(true);
+  const [paymentHistoryError, setPaymentHistoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPaymentHistoryLoading(true);
+    listPaymentIntents()
+      .then((intents) => {
+        if (!cancelled) {
+          setPaymentHistory(intents);
+          setPaymentHistoryError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setPaymentHistoryError(
+            err instanceof BriehostApiError ? err.message : "Could not load payment history",
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPaymentHistoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -986,6 +1046,77 @@ export default function DashboardPage() {
                     No plan selected. Choose one from the plans above.
                   </div>
                 )}
+
+                {/* Payment history — newest first, capped at 50 rows server-side.
+                    Renders a friendly empty state for accounts that haven't
+                    paid anything yet (everyone, on day one). */}
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">
+                    Payment history
+                  </h3>
+                  {paymentHistoryLoading ? (
+                    <div className="rounded-2xl border border-border bg-background/60 p-5 text-xs text-muted-foreground text-center">
+                      Loading payments…
+                    </div>
+                  ) : paymentHistoryError ? (
+                    <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-5 text-xs text-destructive text-center">
+                      {paymentHistoryError}
+                    </div>
+                  ) : paymentHistory.length === 0 ? (
+                    <div className="rounded-2xl border border-border bg-background/60 p-5 text-xs text-muted-foreground text-center">
+                      No payments yet. Once you upgrade a plan, every charge
+                      shows up here.
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-border bg-background/60 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="text-xs text-muted-foreground border-b border-border">
+                            <tr>
+                              <th className="px-4 py-3 text-left font-medium">Date</th>
+                              <th className="px-4 py-3 text-left font-medium">Plan</th>
+                              <th className="px-4 py-3 text-right font-medium">Amount</th>
+                              <th className="px-4 py-3 text-right font-medium">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paymentHistory.map((p) => {
+                              const planName =
+                                p.plan_id in PLANS
+                                  ? PLANS[p.plan_id as CustomerPlanId].name
+                                  : p.plan_id;
+                              return (
+                                <tr
+                                  key={p.id}
+                                  className="border-b border-border/40 last:border-b-0 hover:bg-muted/20 transition"
+                                >
+                                  <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                                    {new Date(p.created_at).toLocaleDateString(undefined, {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </td>
+                                  <td className="px-4 py-3 text-foreground">{planName}</td>
+                                  <td className="px-4 py-3 text-foreground text-right font-medium">
+                                    {formatAmount(p.amount_cents, p.currency)}
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <span
+                                      className={`inline-block px-2 py-0.5 rounded-md text-xs ${PAYMENT_STATUS_STYLES[p.status]}`}
+                                    >
+                                      {PAYMENT_STATUS_LABEL[p.status]}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </section>
 
