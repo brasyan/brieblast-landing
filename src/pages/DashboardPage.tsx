@@ -4,7 +4,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useSites, type SiteStatus } from "@/hooks/useSites";
 import { ADMIN_PLAN, PLANS, type CustomerPlanId, type PlanId } from "@/lib/plans";
 import { supabase } from "@/lib/supabase";
-import { BriehostApiError, createPaymentIntent } from "@/lib/briehostApi";
+import { BriehostApiError, createPaymentIntent, type PaymentProvider } from "@/lib/briehostApi";
 import {
   Activity,
   BarChart3,
@@ -117,7 +117,7 @@ export default function DashboardPage() {
     setConfirmOpen(true);
   };
 
-  const handleConfirmPlan = async () => {
+  const handleConfirmPlan = async (provider: PaymentProvider = "stripe") => {
     if (!pendingPlanId) {
       setConfirmOpen(false);
       return;
@@ -126,8 +126,7 @@ export default function DashboardPage() {
     setChangingPlan(true);
     try {
       // Free / "none" tier downgrade doesn't require payment — flip directly.
-      // Everything else routes through Stripe Checkout (Phase 1: card only).
-      // Phase 3 will replace this with a proper provider picker + skip path.
+      // Admin is internal and shouldn't be reachable via this modal anyway.
       if (pendingPlanId === "none" || pendingPlanId === "admin") {
         await updatePlan(pendingPlanId);
         setConfirmOpen(false);
@@ -135,10 +134,10 @@ export default function DashboardPage() {
         return;
       }
 
-      const { checkoutUrl } = await createPaymentIntent(pendingPlanId, "stripe");
-      // Hard redirect to Stripe's hosted checkout. They bounce back to
-      // /payment-return/:intentId, where PaymentReturnPage polls until the
-      // webhook lands and flips the plan.
+      const { checkoutUrl } = await createPaymentIntent(pendingPlanId, provider);
+      // Hard redirect to the hosted checkout page (Stripe / CoinGate).
+      // They bounce back to /payment-return/:intentId, where PaymentReturnPage
+      // polls until the webhook lands and flips the plan.
       window.location.href = checkoutUrl;
       // No state cleanup on the success path — the page is unmounting.
     } catch (err) {
@@ -946,12 +945,14 @@ export default function DashboardPage() {
             <AlertDialogDescription className="text-sm text-muted-foreground">
               {pendingPlanId && pendingPlanId !== "none" && pendingPlanId !== "admin" ? (
                 <>
-                  You'll be redirected to Stripe to pay {pendingPlan?.price ?? ""} for{" "}
-                  {pendingPlan?.name ?? "this plan"}. Pick any of the available payment
-                  methods on the next screen. (Test mode — no real money moves. Card{" "}
+                  {pendingPlan?.price ?? ""} for {pendingPlan?.name ?? "this plan"}. Pick
+                  how you want to pay: <strong>Stripe</strong> for cards, Bancontact and
+                  the usual fiat methods, or <strong>crypto via CoinGate</strong> (BTC,
+                  ETH, USDC, etc. — settled to EUR on our side). Test mode — no real
+                  money moves. Card{" "}
                   <span className="font-mono">4242 4242 4242 4242</span> with any future
-                  date and CVC; bank-redirect methods like Bancontact have an
-                  "Authorize test payment" button.)
+                  date and CVC for Stripe; CoinGate's sandbox has a "Pay" button on
+                  every invoice that simulates settlement.
                 </>
               ) : (
                 <>
@@ -972,21 +973,39 @@ export default function DashboardPage() {
               ))}
             </ul>
           </div>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
             <AlertDialogCancel className="border-border bg-transparent text-muted-foreground hover:text-foreground">
               Keep current plan
             </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmPlan}
-              disabled={changingPlan}
-              className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50"
-            >
-              {changingPlan
-                ? "Working…"
-                : pendingPlanId && pendingPlanId !== "none" && pendingPlanId !== "admin"
-                  ? "Continue to checkout 🧀"
-                  : "Confirm switch"}
-            </AlertDialogAction>
+            {pendingPlanId && pendingPlanId !== "none" && pendingPlanId !== "admin" ? (
+              // Two payment paths for paid plans: Stripe (cards / Bancontact /
+              // anything you've toggled in the Stripe dashboard) and CoinGate
+              // (crypto, settles to EUR). Both redirect to a hosted checkout.
+              <>
+                <AlertDialogAction
+                  onClick={() => handleConfirmPlan("coingate")}
+                  disabled={changingPlan}
+                  className="bg-orange-500/90 text-black hover:bg-orange-400 disabled:opacity-50"
+                >
+                  {changingPlan ? "Working…" : "Pay with crypto ₿"}
+                </AlertDialogAction>
+                <AlertDialogAction
+                  onClick={() => handleConfirmPlan("stripe")}
+                  disabled={changingPlan}
+                  className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50"
+                >
+                  {changingPlan ? "Working…" : "Continue with Stripe 🧀"}
+                </AlertDialogAction>
+              </>
+            ) : (
+              <AlertDialogAction
+                onClick={() => handleConfirmPlan("stripe")}
+                disabled={changingPlan}
+                className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50"
+              >
+                {changingPlan ? "Working…" : "Confirm switch"}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
