@@ -25,6 +25,7 @@ import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import ResponsibleDisclosurePage from "./pages/ResponsibleDisclosurePage";
 import SiteNotFoundPage from "./pages/SiteNotFoundPage";
+import PaymentReturnPage from "./pages/PaymentReturnPage";
 
 const queryClient = new QueryClient();
 
@@ -77,6 +78,14 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/responsible-disclosure" element={<ResponsibleDisclosurePage />} />
             <Route path="/sitenotfound" element={<SiteNotFoundPage />} />
+            <Route
+              path="/payment-return/:intentId"
+              element={
+                <ProtectedRoute>
+                  <PaymentReturnPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
             </Routes>
             <MfaEncouragementDialog />

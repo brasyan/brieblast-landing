@@ -4,6 +4,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useSites, type Site, type SiteStatus } from "@/hooks/useSites";
 import { ADMIN_PLAN, PLANS, type CustomerPlanId, type PlanId } from "@/lib/plans";
 import { supabase } from "@/lib/supabase";
+import { BriehostApiError, createPaymentIntent } from "@/lib/briehostApi";
 import {
   Activity,
   BarChart3,
@@ -131,13 +132,38 @@ export default function DashboardPage() {
   };
 
   const handleConfirmPlan = async () => {
-    if (pendingPlanId) {
-      setChangingPlan(true);
-      await updatePlan(pendingPlanId);
+    if (!pendingPlanId) {
+      setConfirmOpen(false);
+      return;
+    }
+
+    setChangingPlan(true);
+    try {
+      // Free / "none" tier downgrade doesn't require payment — flip directly.
+      // Everything else routes through Stripe Checkout (Phase 1: card only).
+      // Phase 3 will replace this with a proper provider picker + skip path.
+      if (pendingPlanId === "none" || pendingPlanId === "admin") {
+        await updatePlan(pendingPlanId);
+        setConfirmOpen(false);
+        setPendingPlanId(null);
+        return;
+      }
+
+      const { checkoutUrl } = await createPaymentIntent(pendingPlanId, "stripe");
+      // Hard redirect to Stripe's hosted checkout. They bounce back to
+      // /payment-return/:intentId, where PaymentReturnPage polls until the
+      // webhook lands and flips the plan.
+      window.location.href = checkoutUrl;
+      // No state cleanup on the success path — the page is unmounting.
+    } catch (err) {
+      const msg = err instanceof BriehostApiError ? err.message : String(err);
+      console.error("Plan upgrade failed:", msg);
+      window.alert(`Couldn't start checkout: ${msg}`);
+      setConfirmOpen(false);
+      setPendingPlanId(null);
+    } finally {
       setChangingPlan(false);
     }
-    setConfirmOpen(false);
-    setPendingPlanId(null);
   };
 
   const handleDeleteSite = (siteId: string) => {
@@ -940,8 +966,19 @@ export default function DashboardPage() {
               Switch to {pendingPlan?.name ?? "this plan"}?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-muted-foreground">
-              You are about to move to {pendingPlan?.name ?? "the selected plan"} for {pendingPlan?.price ?? ""}/mo. Your plan updates
-              instantly.
+              {pendingPlanId && pendingPlanId !== "none" && pendingPlanId !== "admin" ? (
+                <>
+                  You'll be redirected to Stripe to pay {pendingPlan?.price ?? ""} for{" "}
+                  {pendingPlan?.name ?? "this plan"}. (Test mode — no real money moves.
+                  Use card <span className="font-mono">4242 4242 4242 4242</span> with any
+                  future date and CVC.)
+                </>
+              ) : (
+                <>
+                  You are about to move to {pendingPlan?.name ?? "the selected plan"}.
+                  Your plan updates instantly.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="rounded-2xl border border-border bg-background/60 p-4 text-sm text-muted-foreground">
@@ -964,7 +1001,11 @@ export default function DashboardPage() {
               disabled={changingPlan}
               className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50"
             >
-              {changingPlan ? "Updating..." : "Confirm switch"}
+              {changingPlan
+                ? "Working…"
+                : pendingPlanId && pendingPlanId !== "none" && pendingPlanId !== "admin"
+                  ? "Continue to checkout 🧀"
+                  : "Confirm switch"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

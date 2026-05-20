@@ -177,6 +177,112 @@ export async function provisionSite(
   return (await resp.json()) as ProvisionResult;
 }
 
+// --- Payments ---------------------------------------------------------------
+//
+// All providers (Stripe / PayPal / CoinGate / skip) share the same dispatch
+// endpoint. createPaymentIntent returns a checkout URL the caller redirects to;
+// getPaymentIntent is polled on the return page until status leaves 'pending'.
+// See briehost-api/docs/PAYMENTS.md for the architecture.
+
+export type PaymentProvider = "stripe" | "paypal" | "coingate" | "skip";
+export type PaymentStatusValue = "pending" | "succeeded" | "failed" | "cancelled";
+
+export interface CreatePaymentIntentResult {
+  intentId: string;
+  checkoutUrl: string;
+  provider: PaymentProvider;
+}
+
+export interface PaymentIntent {
+  id: string;
+  plan_id: string;
+  provider: PaymentProvider;
+  status: PaymentStatusValue;
+  amount_cents: number;
+  currency: string;
+  created_at: string;
+}
+
+export async function createPaymentIntent(
+  planId: string,
+  provider: PaymentProvider,
+): Promise<CreatePaymentIntentResult> {
+  if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
+  const token = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (API_KEY) headers["x-api-key"] = API_KEY;
+
+  const resp = await fetch(`${BASE_URL}/api/payments/intents`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ planId, provider }),
+  });
+
+  if (!resp.ok) {
+    let detail = await resp.text();
+    try {
+      detail = JSON.parse(detail).detail ?? detail;
+    } catch {
+      // keep raw text
+    }
+    throw new BriehostApiError(
+      detail || `Create payment intent failed (${resp.status})`,
+      resp.status,
+    );
+  }
+  return (await resp.json()) as CreatePaymentIntentResult;
+}
+
+export async function getPaymentIntent(intentId: string): Promise<PaymentIntent> {
+  if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
+  const token = await getAccessToken();
+
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  if (API_KEY) headers["x-api-key"] = API_KEY;
+
+  const resp = await fetch(`${BASE_URL}/api/payments/intents/${intentId}`, {
+    headers,
+  });
+  if (!resp.ok) {
+    throw new BriehostApiError(
+      `Get payment intent failed (${resp.status})`,
+      resp.status,
+    );
+  }
+  return (await resp.json()) as PaymentIntent;
+}
+
+export async function skipPayment(planId: string): Promise<{ plan: string; intentId: string }> {
+  if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
+  const token = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (API_KEY) headers["x-api-key"] = API_KEY;
+
+  const resp = await fetch(`${BASE_URL}/api/payments/skip`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ planId }),
+  });
+  if (!resp.ok) {
+    let detail = await resp.text();
+    try {
+      detail = JSON.parse(detail).detail ?? detail;
+    } catch {
+      // keep raw text
+    }
+    throw new BriehostApiError(detail || `Skip failed (${resp.status})`, resp.status);
+  }
+  return (await resp.json()) as { plan: string; intentId: string };
+}
+
 export async function deleteSite(siteId: string): Promise<void> {
   if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
   const token = await getAccessToken();
