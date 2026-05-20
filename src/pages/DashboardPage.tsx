@@ -1055,28 +1055,36 @@ export default function DashboardPage() {
 
       {/* Plan Change Confirmation Dialog */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent className="border border-border bg-card/95 shadow-2xl shadow-black/40">
+        <AlertDialogContent className="border border-border bg-card/95 shadow-2xl shadow-black/40 sm:max-w-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-2xl text-foreground">
               Switch to {pendingPlan?.name ?? "this plan"}?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm text-muted-foreground">
+            <AlertDialogDescription asChild>
               {pendingPlanId && pendingPlanId !== "none" && pendingPlanId !== "admin" ? (
-                <>
-                  {pendingPlan?.price ?? ""} for {pendingPlan?.name ?? "this plan"}. Pick
-                  how you want to pay: <strong>Stripe</strong> for cards, Bancontact and
-                  the usual fiat methods, or <strong>crypto via CoinGate</strong> (BTC,
-                  ETH, USDC, etc. — settled to EUR on our side). Test mode — no real
-                  money moves. Card{" "}
-                  <span className="font-mono">4242 4242 4242 4242</span> with any future
-                  date and CVC for Stripe; CoinGate's sandbox has a "Pay" button on
-                  every invoice that simulates settlement.
-                </>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p className="text-base text-foreground">
+                    <span className="font-bold text-primary">{pendingPlan?.price ?? ""}</span>{" "}
+                    for {pendingPlan?.name ?? "this plan"}.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Stripe</strong> — cards,
+                    Bancontact, and other fiat methods.
+                    <br />
+                    <strong className="text-foreground">CoinGate</strong> — crypto (BTC,
+                    ETH, USDC…), settled to EUR on our side.
+                  </p>
+                  <p className="text-xs">
+                    Test mode — no real money moves. Stripe: card{" "}
+                    <span className="font-mono">4242 4242 4242 4242</span>, any future
+                    date + CVC. CoinGate: hit "Pay" on the sandbox invoice.
+                  </p>
+                </div>
               ) : (
-                <>
+                <p className="text-sm text-muted-foreground">
                   You are about to move to {pendingPlan?.name ?? "the selected plan"}.
                   Your plan updates instantly.
-                </>
+                </p>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1091,39 +1099,38 @@ export default function DashboardPage() {
               ))}
             </ul>
           </div>
-          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
-            <AlertDialogCancel className="border-border bg-transparent text-muted-foreground hover:text-foreground">
-              Keep current plan
-            </AlertDialogCancel>
+          {/* Stack the cancel button above the action buttons so the two
+              payment options sit side-by-side and don't get squeezed. */}
+          <AlertDialogFooter className="flex flex-col gap-3 sm:flex-col sm:space-x-0">
             {pendingPlanId && pendingPlanId !== "none" && pendingPlanId !== "admin" ? (
-              // Two payment paths for paid plans: Stripe (cards / Bancontact /
-              // anything you've toggled in the Stripe dashboard) and CoinGate
-              // (crypto, settles to EUR). Both redirect to a hosted checkout.
-              <>
-                <AlertDialogAction
-                  onClick={() => handleConfirmPlan("coingate")}
-                  disabled={changingPlan}
-                  className="bg-orange-500/90 text-black hover:bg-orange-400 disabled:opacity-50"
-                >
-                  {changingPlan ? "Working…" : "Pay with crypto ₿"}
-                </AlertDialogAction>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
                 <AlertDialogAction
                   onClick={() => handleConfirmPlan("stripe")}
                   disabled={changingPlan}
-                  className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50"
+                  className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50 w-full"
                 >
                   {changingPlan ? "Working…" : "Continue with Stripe 🧀"}
                 </AlertDialogAction>
-              </>
+                <AlertDialogAction
+                  onClick={() => handleConfirmPlan("coingate")}
+                  disabled={changingPlan}
+                  className="bg-orange-500/90 text-black hover:bg-orange-400 disabled:opacity-50 w-full"
+                >
+                  {changingPlan ? "Working…" : "Pay with crypto ₿"}
+                </AlertDialogAction>
+              </div>
             ) : (
               <AlertDialogAction
                 onClick={() => handleConfirmPlan("stripe")}
                 disabled={changingPlan}
-                className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50"
+                className="bg-yellow-500/90 text-black hover:bg-yellow-400 disabled:opacity-50 w-full"
               >
                 {changingPlan ? "Working…" : "Confirm switch"}
               </AlertDialogAction>
             )}
+            <AlertDialogCancel className="border-border bg-transparent text-muted-foreground hover:text-foreground w-full mt-0">
+              Keep current plan
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
