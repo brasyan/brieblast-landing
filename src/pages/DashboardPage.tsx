@@ -947,11 +947,11 @@ export default function DashboardPage() {
               {pendingPlanId && pendingPlanId !== "none" && pendingPlanId !== "admin" ? (
                 <>
                   You'll be redirected to Stripe to pay {pendingPlan?.price ?? ""} for{" "}
-                  {pendingPlan?.name ?? "this plan"} — pay by card or Bancontact.
-                  (Test mode — no real money moves. Card{" "}
+                  {pendingPlan?.name ?? "this plan"}. Pick any of the available payment
+                  methods on the next screen. (Test mode — no real money moves. Card{" "}
                   <span className="font-mono">4242 4242 4242 4242</span> with any future
-                  date and CVC; Bancontact has an "Authorize test payment" button on
-                  the redirect page.)
+                  date and CVC; bank-redirect methods like Bancontact have an
+                  "Authorize test payment" button.)
                 </>
               ) : (
                 <>
