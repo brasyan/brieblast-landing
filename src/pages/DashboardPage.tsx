@@ -1065,9 +1065,11 @@ export default function DashboardPage() {
               {pendingPlanId && pendingPlanId !== "none" && pendingPlanId !== "admin" ? (
                 <>
                   You'll be redirected to Stripe to pay {pendingPlan?.price ?? ""} for{" "}
-                  {pendingPlan?.name ?? "this plan"}. (Test mode — no real money moves.
-                  Use card <span className="font-mono">4242 4242 4242 4242</span> with any
-                  future date and CVC.)
+                  {pendingPlan?.name ?? "this plan"}. Pick any of the available payment
+                  methods on the next screen. (Test mode — no real money moves. Card{" "}
+                  <span className="font-mono">4242 4242 4242 4242</span> with any future
+                  date and CVC; bank-redirect methods like Bancontact have an
+                  "Authorize test payment" button.)
                 </>
               ) : (
                 <>
