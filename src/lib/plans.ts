@@ -11,6 +11,11 @@ export interface PlanDetails {
   features: string[];
   popular: boolean;
   storage: number; // in GB
+  // Max number of sites the user can have on this plan. `null` = unlimited.
+  // MUST match briehost-api/app/plans.py PLAN_LIMITS — the backend is the
+  // enforced source of truth; this copy is for client-side UX (showing
+  // "X/Y used" and disabling the upload button preemptively).
+  maxSites: number | null;
 }
 
 export const PLANS: Record<CustomerPlanId, PlanDetails> = {
@@ -30,6 +35,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
     ],
     popular: false,
     storage: 5,
+    maxSites: 1,
   },
   thicc_brie: {
     id: "thicc_brie",
@@ -49,6 +55,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
     ],
     popular: true,
     storage: 50,
+    maxSites: null,
   },
   mega_brie: {
     id: "mega_brie",
@@ -69,6 +76,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
     ],
     popular: false,
     storage: 200,
+    maxSites: null,
   },
 };
 
@@ -87,4 +95,5 @@ export const ADMIN_PLAN: PlanDetails = {
   ],
   popular: false,
   storage: 9999,
+  maxSites: null,
 };

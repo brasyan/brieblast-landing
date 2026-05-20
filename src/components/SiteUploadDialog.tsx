@@ -160,6 +160,14 @@ export default function SiteUploadDialog({ open, onOpenChange, onUploaded }: Sit
         setScanFailedOpen(true);
         setUploading(false);
         onOpenChange(false);
+      } else if (e.status === 402) {
+        // Plan-limit hit. The detail object carries `message` (already
+        // human-friendly) — we surface it as-is and let the user notice
+        // the dashboard's "Upgrade plan" CTA in the plan section.
+        setServerError(
+          `${e.message} ${e.reason === "plan_site_limit" || e.reason === "plan_storage_limit" ? "Head to the Plans section to upgrade." : ""}`.trim(),
+        );
+        setUploading(false);
       } else {
         setServerError(e.message);
         setUploading(false);

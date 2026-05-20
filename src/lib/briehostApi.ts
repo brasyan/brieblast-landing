@@ -33,10 +33,40 @@ export class BriehostApiError extends Error {
     message: string,
     public status: number,
     public reason?: string,
+    // Some errors (notably 402 from plan limits) come with a structured
+    // detail object instead of a string — we expose it raw so callers can
+    // pull out fields like `limit`, `current`, `limit_bytes`, etc.
+    public detail?: unknown,
   ) {
     super(message);
     this.name = "BriehostApiError";
   }
+}
+
+/** Plan-limit 402 payload shape from app/limits.py. */
+export interface PlanLimitErrorDetail {
+  reason: "plan_site_limit" | "plan_storage_limit";
+  message: string;
+  limit?: number;
+  current?: number;
+  limit_bytes?: number;
+  current_bytes?: number;
+  new_bytes?: number;
+}
+
+/** Narrowing helper for plan-limit errors so call sites don't need to
+ * juggle `unknown` discriminants. */
+export function isPlanLimitError(err: unknown): err is BriehostApiError & {
+  status: 402;
+  detail: PlanLimitErrorDetail;
+} {
+  return (
+    err instanceof BriehostApiError &&
+    err.status === 402 &&
+    typeof err.detail === "object" &&
+    err.detail !== null &&
+    "reason" in (err.detail as Record<string, unknown>)
+  );
 }
 
 async function getAccessToken(): Promise<string> {
@@ -82,16 +112,33 @@ export async function uploadSite(
           reject(new BriehostApiError("Invalid response from server", xhr.status));
         }
       } else {
-        let detail = xhr.responseText;
+        const raw = xhr.responseText;
+        let message = raw;
         let reason: string | undefined;
+        let detailObj: unknown;
         try {
-          const parsed = JSON.parse(xhr.responseText);
-          detail = parsed.detail ?? detail;
-          reason = parsed.reason;
+          const parsed = JSON.parse(raw);
+          const parsedDetail = parsed?.detail;
+          if (typeof parsedDetail === "string") {
+            message = parsedDetail;
+          } else if (parsedDetail && typeof parsedDetail === "object") {
+            detailObj = parsedDetail;
+            message =
+              (parsedDetail as Record<string, unknown>).message?.toString() ??
+              raw;
+            reason = (parsedDetail as Record<string, unknown>).reason?.toString();
+          }
         } catch {
           // keep raw text
         }
-        reject(new BriehostApiError(detail || `Upload failed (${xhr.status})`, xhr.status, reason));
+        reject(
+          new BriehostApiError(
+            message || `Upload failed (${xhr.status})`,
+            xhr.status,
+            reason,
+            detailObj,
+          ),
+        );
       }
     };
 
@@ -123,19 +170,30 @@ export async function uploadSiteFromRepo(
   });
 
   if (!resp.ok) {
-    let detail = await resp.text();
+    const raw = await resp.text();
+    let message = raw;
     let reason: string | undefined;
+    let detailObj: unknown;
     try {
-      const parsed = JSON.parse(detail);
-      detail = parsed.detail ?? detail;
-      reason = parsed.reason;
+      const parsed = JSON.parse(raw);
+      const parsedDetail = parsed?.detail;
+      if (typeof parsedDetail === "string") {
+        message = parsedDetail;
+      } else if (parsedDetail && typeof parsedDetail === "object") {
+        detailObj = parsedDetail;
+        message =
+          (parsedDetail as Record<string, unknown>).message?.toString() ??
+          raw;
+        reason = (parsedDetail as Record<string, unknown>).reason?.toString();
+      }
     } catch {
       // keep raw text
     }
     throw new BriehostApiError(
-      detail || `Repo import failed (${resp.status})`,
+      message || `Repo import failed (${resp.status})`,
       resp.status,
       reason,
+      detailObj,
     );
   }
 
