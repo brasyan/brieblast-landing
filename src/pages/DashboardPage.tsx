@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { useProfile } from "@/hooks/useProfile";
-import { useSites, type SiteStatus } from "@/hooks/useSites";
+import { useSites, type Site, type SiteStatus } from "@/hooks/useSites";
 import { ADMIN_PLAN, PLANS, type CustomerPlanId, type PlanId } from "@/lib/plans";
 import { supabase } from "@/lib/supabase";
 import {
@@ -71,6 +71,19 @@ const STATUS_LABEL: Record<SiteStatus, string> = {
   scan_failed: "Scan Failed",
 };
 
+const formatSiteSize = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+const getPublicUrl = (site: Site) => (
+  site.subdomain ? `https://${site.subdomain}.${PUBLIC_DOMAIN}` : null
+);
+
+const deploymentSteps: Array<{ status: SiteStatus; label: string }> = [
+  { status: "uploaded", label: "Uploaded" },
+  { status: "scanning", label: "Scanning" },
+  { status: "provisioning", label: "Provisioning" },
+  { status: "live", label: "Live" },
+];
+
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const { profile, loading: profileLoading, updatePlan } = useProfile();
@@ -104,6 +117,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "status" | "date" | "size">("date");
   const [scanFailedSiteId, setScanFailedSiteId] = useState<string | null>(null);
+  const [detailsSiteId, setDetailsSiteId] = useState<string | null>(null);
 
   const handleSignOut = async () => {
     await signOut();
@@ -132,6 +146,7 @@ export default function DashboardPage() {
   };
 
   const selectedScanFailedSite = sites.find((site) => site.id === scanFailedSiteId) ?? null;
+  const selectedDetailsSite = sites.find((site) => site.id === detailsSiteId) ?? null;
 
   const openScanFailedDialog = (siteId: string) => {
     setScanFailedSiteId(siteId);
@@ -263,6 +278,11 @@ export default function DashboardPage() {
     sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
   }, []);
+
+  const selectedDetailsPublicUrl = selectedDetailsSite ? getPublicUrl(selectedDetailsSite) : null;
+  const selectedDetailsStepIndex = selectedDetailsSite
+    ? deploymentSteps.findIndex((step) => step.status === selectedDetailsSite.status)
+    : -1;
 
   if (sitesError) {
     return (
@@ -560,7 +580,7 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <select
                       value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
+                      onChange={(e) => setSortBy(e.target.value as "name" | "status" | "date" | "size")}
                       className="rounded-lg border border-border bg-background/60 px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/40"
                     >
                       <option value="date">Sort: Newest</option>
@@ -635,9 +655,7 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     sortedSites.map((site) => {
-                      const publicUrl = site.subdomain
-                        ? `https://${site.subdomain}.${PUBLIC_DOMAIN}`
-                        : null;
+                      const publicUrl = getPublicUrl(site);
                       return (
                         <div
                           key={site.id}
@@ -709,7 +727,11 @@ export default function DashboardPage() {
                           <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
                             Manage
                           </button>
-                          <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
+                          <button
+                            type="button"
+                            onClick={() => setDetailsSiteId(site.id)}
+                            className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70"
+                          >
                             Details
                           </button>
                           {(site.status === "failed" || site.status === "scan_failed") && (
@@ -1140,6 +1162,165 @@ export default function DashboardPage() {
                 <p>
                   This upload should be reviewed before it is made available again.
                 </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={detailsSiteId !== null} onOpenChange={(open) => !open && setDetailsSiteId(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Site Details</DialogTitle>
+            <DialogDescription>
+              Deployment, hosting, and file information for this site.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedDetailsSite && (
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-border bg-muted/30 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">Site name</p>
+                    <h3 className="mt-1 truncate text-xl font-semibold text-foreground">{selectedDetailsSite.name}</h3>
+                    <p className="mt-1 truncate text-sm text-muted-foreground">{selectedDetailsSite.original_filename}</p>
+                  </div>
+                  <span className={`w-fit text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap ${STATUS_STYLES[selectedDetailsSite.status]}`}>
+                    {STATUS_LABEL[selectedDetailsSite.status]}
+                  </span>
+                </div>
+
+                {selectedDetailsPublicUrl ? (
+                  <div className="mt-4 flex items-center gap-2 rounded-lg border border-yellow-400/30 bg-yellow-500/5 px-3 py-2">
+                    <Globe className="h-4 w-4 shrink-0 text-yellow-300" />
+                    <a
+                      href={selectedDetailsPublicUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="min-w-0 flex-1 truncate text-sm font-medium text-yellow-200 hover:text-yellow-100"
+                    >
+                      {selectedDetailsPublicUrl}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyUrl(selectedDetailsSite.id, selectedDetailsPublicUrl)}
+                      className="inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-yellow-500/10 hover:text-yellow-200"
+                      aria-label="Copy site URL"
+                      title={copiedSiteId === selectedDetailsSite.id ? "Copied!" : "Copy URL"}
+                    >
+                      {copiedSiteId === selectedDetailsSite.id ? (
+                        <Check className="h-4 w-4 text-emerald-300" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </button>
+                    <a
+                      href={selectedDetailsPublicUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-yellow-500/10 hover:text-yellow-200"
+                      aria-label="Open site"
+                      title="Open in new tab"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
+                ) : (
+                  <p className="mt-4 rounded-lg border border-border bg-background/50 px-3 py-2 text-sm text-muted-foreground">
+                    Public URL is not available yet.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-border bg-background/60 p-4">
+                <h4 className="text-sm font-semibold text-foreground">Deployment timeline</h4>
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
+                  {deploymentSteps.map((step, index) => {
+                    const isComplete = selectedDetailsStepIndex >= index || selectedDetailsSite.status === "live";
+                    const isCurrent = selectedDetailsSite.status === step.status;
+                    return (
+                      <div
+                        key={step.status}
+                        className={`rounded-xl border p-3 ${
+                          isCurrent
+                            ? "border-yellow-400/50 bg-yellow-500/10"
+                            : isComplete
+                              ? "border-emerald-400/40 bg-emerald-500/10"
+                              : "border-border bg-muted/30"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${
+                              isCurrent
+                                ? "bg-yellow-300"
+                                : isComplete
+                                  ? "bg-emerald-300"
+                                  : "bg-muted-foreground/40"
+                            }`}
+                          />
+                          <p className="text-xs font-medium text-foreground">{step.label}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {(selectedDetailsSite.status === "failed" || selectedDetailsSite.status === "scan_failed") && (
+                  <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                    <p className="font-medium text-destructive">
+                      {selectedDetailsSite.status === "scan_failed" ? "Security scan failed" : "Deployment failed"}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {selectedDetailsSite.error_message || "No additional error details were provided."}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">File size</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">{formatSiteSize(selectedDetailsSite.size_bytes)}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Uploaded</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">{new Date(selectedDetailsSite.created_at).toLocaleString()}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Last updated</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">{new Date(selectedDetailsSite.updated_at).toLocaleString()}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-background/60 p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">VM ID</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">
+                    {selectedDetailsSite.vmid ?? selectedDetailsSite.proxmox_vmid ?? "Not assigned"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-background/60 p-4 sm:col-span-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">IP address</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">{selectedDetailsSite.ip_address || "Not assigned"}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDetailsSiteId(null)}
+                  className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground transition hover:border-yellow-400/70 hover:text-foreground"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDetailsSiteId(null);
+                    handleDeleteSite(selectedDetailsSite.id);
+                  }}
+                  className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive transition hover:border-destructive/70 hover:bg-destructive/20"
+                >
+                  Remove Site
+                </button>
               </div>
             </div>
           )}
