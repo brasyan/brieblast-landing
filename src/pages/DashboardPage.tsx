@@ -400,11 +400,14 @@ export default function DashboardPage() {
     }
   });
 
-  // Calculate storage usage
-  const totalStorageUsed = sites.reduce((sum, site) => sum + site.size_bytes, 0);
-  const totalStorageMB = totalStorageUsed / 1024 / 1024;
+  // Calculate storage usage. NOTE: the old code divided bytes by 1024² (=MB)
+  // but labelled the result GB and compared it to plan.storage (GB) — so a
+  // 10 MB upload rendered as "10.0 GB / 5 GB" with a maxed-out bar. The API
+  // never agreed; this was purely a display bug. Convert to GB properly.
+  const totalStorageBytes = sites.reduce((sum, site) => sum + site.size_bytes, 0);
+  const totalStorageGB = totalStorageBytes / (1024 ** 3);
   const planStorage = currentPlan?.storage || 0;
-  const storageUsagePercent = planStorage > 0 ? Math.min((totalStorageMB / planStorage) * 100, 100) : 0;
+  const storageUsagePercent = planStorage > 0 ? Math.min((totalStorageGB / planStorage) * 100, 100) : 0;
 
   // Export CSV function
   const exportToCSV = () => {
@@ -786,7 +789,7 @@ export default function DashboardPage() {
                   <div className="mt-4 rounded-2xl border border-border bg-background/60 p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs text-muted-foreground">Storage Usage</span>
-                      <span className="text-xs font-semibold text-foreground">{totalStorageMB.toFixed(1)} GB / {planStorage} GB</span>
+                      <span className="text-xs font-semibold text-foreground">{totalStorageGB.toFixed(2)} GB / {planStorage} GB</span>
                     </div>
                     <div className="h-2 rounded-full bg-muted/60 overflow-hidden">
                       <div
