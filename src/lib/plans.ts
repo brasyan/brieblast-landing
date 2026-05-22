@@ -45,7 +45,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
     meme: "🧀🧀🧀",
     description: "For the absolute unit who needs POWER",
     features: [
-      "Unlimited Websites",
+      "3 Websites",
       "50GB NVMe Storage",
       "Free SSL + Wildcard",
       "Priority Support (actually fast)",
@@ -55,7 +55,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
     ],
     popular: true,
     storage: 50,
-    maxSites: null,
+    maxSites: 3,
   },
   mega_brie: {
     id: "mega_brie",
@@ -66,6 +66,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
     description: "You're either running a company or flexing. Either way, respect.",
     features: [
       "Everything in Thicc",
+      "5 Websites",
       "200GB NVMe Storage",
       "Dedicated Resources",
       "24/7 Phone Support",
@@ -76,7 +77,7 @@ export const PLANS: Record<CustomerPlanId, PlanDetails> = {
     ],
     popular: false,
     storage: 200,
-    maxSites: null,
+    maxSites: 5,
   },
 };
 

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background-color: #0f0f0f;
+            color: #e4e4e7;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #1a1a1a;
+            border: 1px solid #27272a;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+            padding: 32px 24px;
+            text-align: center;
+        }
+        .header-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+            margin: 0;
+        }
+        .header-subtitle {
+            color: #fbcfe8;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .content {
+            padding: 40px 24px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ec4899;
+            margin-bottom: 16px;
+        }
+        .message {
+            color: #d4d4d8;
+            margin-bottom: 24px;
+            font-size: 15px;
+        }
+        .sender-info {
+            background-color: #27272a;
+            border: 1px solid #3f3f46;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+        .sender-name {
+            color: #ec4899;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .sender-message {
+            color: #a1a1aa;
+            font-size: 14px;
+            font-style: italic;
+            border-left: 2px solid #ec4899;
+            padding-left: 12px;
+            margin-top: 8px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+            color: #fff;
+            padding: 14px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 24px 0;
+            transition: transform 0.2s;
+        }
+        .cta-button:hover {
+            transform: scale(1.02);
+        }
+        .benefits-box {
+            background-color: #27272a;
+            border: 1px solid #3f3f46;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+        .benefits-title {
+            font-weight: 600;
+            color: #ec4899;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .benefits-list {
+            color: #a1a1aa;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        .copy-url {
+            background-color: #1a1a1a;
+            border: 1px solid #3f3f46;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 16px 0;
+            word-break: break-all;
+            color: #71717a;
+            font-size: 11px;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+        .footer {
+            background-color: #0f0f0f;
+            padding: 24px;
+            border-top: 1px solid #27272a;
+            text-align: center;
+            font-size: 12px;
+            color: #71717a;
+        }
+        .footer-text {
+            margin-bottom: 8px;
+        }
+        .highlight {
+            color: #ec4899;
+        }
+        .secondary-link {
+            display: block;
+            text-align: center;
+            margin-top: 16px;
+            color: #a1a1aa;
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.2s;
+        }
+        .secondary-link:hover {
+            color: #ec4899;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="header-title">🎉 You've Been Invited!</h1>
+            <p class="header-subtitle">Join BrieHosting</p>
+        </div>
+
+        <div class="content">
+            <p class="greeting">Welcome to the Cheesiest Hosting on the Internet! 🧀</p>
+            
+            <p class="message">
+                <span class="highlight" style="font-weight: 600;">{{.InviterName}}</span> thinks you'd be perfect for BrieHosting
+                and has sent you an exclusive invitation to join our community.
+            </p>
+
+            <div class="sender-info">
+                <div class="sender-name">Message from {{.InviterName}}:</div>
+                <div class="sender-message">
+                    "{{.InviteMessage}}"
+                </div>
+            </div>
+
+            <p class="message">
+                Ready to experience hosting that actually doesn't suck? 
+                Click the button below to create your BrieHosting account and start hosting.
+            </p>
+
+            <center>
+                <a href="{{.InviteLink}}" class="cta-button">Accept Invitation</a>
+            </center>
+
+            <p class="message">
+                Or copy this link:
+            </p>
+
+            <div class="copy-url">{{.InviteLink}}</div>
+
+            <div class="benefits-box">
+                <div class="benefits-title">✨ What You Get at BrieHosting</div>
+                <div class="benefits-list">
+                    ✓ Stupid fast hosting infrastructure<br>
+                    ✓ Automatic SSL certificates<br>
+                    ✓ 99.9% uptime guarantee<br>
+                    ✓ Free CDN included<br>
+                    ✓ Lightning-fast support<br>
+                    ✓ Fair pricing (no hidden fees)<br>
+                    ✓ Made with 🧀 in Belgium
+                </div>
+            </div>
+
+            <p class="message">
+                <strong>First Time Here?</strong><br>
+                No worries! Creating an account takes less than 2 minutes.
+                You'll need to set up two-factor authentication for security,
+                then you can deploy your first site immediately.
+            </p>
+
+            <p class="message">
+                Questions? Check out our <a href="https://briehosting.be/help" style="color: #ec4899; text-decoration: none;">help center</a>
+                or <a href="https://briehosting.be/contact" style="color: #ec4899; text-decoration: none;">get in touch with our team</a>.
+            </p>
+        </div>
+
+        <a href="https://briehosting.be" class="secondary-link">Learn more about BrieHosting →</a>
+
+        <div class="footer">
+            <p class="footer-text">
+                Invited by: <span class="highlight">{{.InviterEmail}}</span>
+            </p>
+            <p class="footer-text">
+                This invitation link expires in 30 days.
+            </p>
+            <p class="footer-text">
+                © 2026 BrieHosting.be — Made with 🧀 in Belgium
+            </p>
+        </div>
+    </div>
+</body>
+</html>
