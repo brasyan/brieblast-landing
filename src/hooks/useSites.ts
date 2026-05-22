@@ -8,8 +8,10 @@ import { useAuth } from "@/contexts/AuthContext";
 // dashboard. `scanning` was the one that bit us first.
 export type SiteStatus =
   | "uploaded"
+  | "queued"
   | "scanning"
   | "provisioning"
+  | "updating"
   | "live"
   | "failed"
   | "scan_failed";
@@ -30,11 +32,23 @@ export interface Site {
   subdomain?: string | null;
   ip_address?: string | null;
   vmid?: number | null;
+  // Set by /upload-repo so a one-click redeploy can re-pull without making
+  // the user re-enter the URL. Null for zip-uploaded sites (can't redeploy).
+  repo_host?: string | null;
+  repo_url?: string | null;
+  repo_branch?: string | null;
+  last_deploy_at?: string | null;
 }
 
 // Statuses where the worker is still doing something — UI should poll for
 // updates until every row is in a terminal state.
-const PENDING_STATUSES = new Set<SiteStatus>(["uploaded", "scanning", "provisioning"]);
+const PENDING_STATUSES = new Set<SiteStatus>([
+  "uploaded",
+  "queued",
+  "scanning",
+  "provisioning",
+  "updating",
+]);
 const POLL_INTERVAL_MS = 4000;
 
 export function useSites() {
