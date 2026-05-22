@@ -26,6 +26,7 @@ import {
   LineChart,
   MessageSquare,
   Plus,
+  RefreshCw,
   Rocket,
   Search,
   Settings,
@@ -170,6 +171,8 @@ export default function DashboardPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [siteToDelete, setSiteToDelete] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [redeployingId, setRedeployingId] = useState<string | null>(null);
+  const [redeployError, setRedeployError] = useState<string | null>(null);
   const [howToOpen, setHowToOpen] = useState(false);
   const [supportTicketOpen, setSupportTicketOpen] = useState(false);
   const [ticketForm, setTicketForm] = useState({ email: user?.email || "", subject: "", message: "" });
@@ -365,6 +368,52 @@ export default function DashboardPage() {
         setDeleteConfirmOpen(false);
         setSiteToDelete(null);
       }
+    }
+  };
+
+  // One-click redeploy: re-pull the site's stored repo and push the new
+  // contents into the existing CT. Only meaningful for sites uploaded from a
+  // git repo (the API enforces this; we just hide the button otherwise).
+  const handleRedeploySite = async (siteId: string) => {
+    setRedeployingId(siteId);
+    setRedeployError(null);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const baseUrl = import.meta.env.VITE_BRIEHOST_API_URL;
+      const response = await fetch(`${baseUrl}/api/sites/${siteId}/redeploy`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        // Surface the rate-limit / 409 / 503 message the API hands back so the
+        // user knows whether to wait, fix the source repo, or just try again.
+        let detail = `Update failed (${response.status})`;
+        try {
+          const body = await response.json();
+          if (body?.detail) detail = body.detail;
+        } catch {
+          // non-JSON body — fall back to the generic message above
+        }
+        throw new Error(detail);
+      }
+
+      // The row will flip to 'queued' → 'updating' → 'live' on its own; the
+      // existing polling loop in useSites picks that up. Just refetch once to
+      // make the badge update without a 4-second delay.
+      await refetchSites();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error("Redeploy failed:", msg);
+      setRedeployError(msg);
+    } finally {
+      setRedeployingId(null);
     }
   };
 
@@ -918,6 +967,18 @@ export default function DashboardPage() {
                           >
                             Details
                           </button>
+                          {site.repo_url && (site.status === "live" || site.status === "failed") && (
+                            <button
+                              type="button"
+                              onClick={() => handleRedeploySite(site.id)}
+                              disabled={redeployingId === site.id}
+                              className="rounded-full border border-yellow-400/40 bg-yellow-400/10 text-yellow-400 px-3 py-1.5 transition hover:border-yellow-400/70 hover:bg-yellow-400/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                              title={`Re-pull ${site.repo_url}${site.repo_branch ? ` (${site.repo_branch})` : ""} and redeploy`}
+                            >
+                              <RefreshCw className={`w-3 h-3 ${redeployingId === site.id ? "animate-spin" : ""}`} />
+                              {redeployingId === site.id ? "Updating..." : "Update"}
+                            </button>
+                          )}
                           {(site.status === "failed" || site.status === "scan_failed") && (
                             <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
                               Retry
@@ -1265,6 +1326,29 @@ export default function DashboardPage() {
             <AlertDialogCancel className="border-border bg-transparent text-muted-foreground hover:text-foreground w-full mt-0">
               Keep current plan
             </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Redeploy error dialog — surfaces 429 (rate limit), 503 (queue full),
+          409 (bad state), etc. so the user knows why the click did nothing. */}
+      <AlertDialog open={!!redeployError} onOpenChange={(open) => !open && setRedeployError(null)}>
+        <AlertDialogContent className="border border-border bg-card/95 shadow-2xl shadow-black/40">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl text-foreground">
+              Couldn&apos;t update site
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground whitespace-pre-line">
+              {redeployError}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => setRedeployError(null)}
+              className="bg-yellow-500/90 text-black hover:bg-yellow-400"
+            >
+              Got it
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
