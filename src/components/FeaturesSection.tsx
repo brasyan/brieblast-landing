@@ -16,13 +16,6 @@ const features = [
     glowClass: "glow-pink",
   },
   {
-    icon: Server,
-    title: "Brielliant Uptime",
-    description: "We guarantee uptime that's as consistent as our Belgian cheese.",
-    meme: "🖥️",
-    glowClass: "glow-cyan",
-  },
-  {
     icon: Globe,
     title: "CDN Everywhere",
     description: "Your content cached in more places than your ex's Instagram stalking history.",
