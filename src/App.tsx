@@ -26,7 +26,7 @@ import PrivacyPage from "./pages/PrivacyPage";
 import ResponsibleDisclosurePage from "./pages/ResponsibleDisclosurePage";
 import SiteNotFoundPage from "./pages/SiteNotFoundPage";
 import PaymentReturnPage from "./pages/PaymentReturnPage";
-import Roadmap from "./pages/Roadmap";
+import ImplementationPath from "./pages/ImplementationPath";
 
 const queryClient = new QueryClient();
 
@@ -42,7 +42,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/features" element={<Features />} />
             <Route path="/status" element={<Status />} />
-            <Route path="/roadmap" element={<Roadmap />} />
+            <Route path="/implementation-path" element={<ImplementationPath />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />

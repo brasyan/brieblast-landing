@@ -50,7 +50,7 @@ const milestones = [
   },
 ];
 
-const Roadmap = () => {
+const ImplementationPath = () => {
   return (
     <div className="min-h-screen bg-background">
       <NavBar />
@@ -63,7 +63,7 @@ const Roadmap = () => {
         <div className="relative max-w-3xl mx-auto">
           <p className="text-sm font-meme text-primary mb-4 uppercase tracking-widest">The Path Ahead</p>
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            <span className="text-gradient-cheese">Roadmap</span>
+            Implementation <span className="text-gradient-cheese">Path</span>
           </h1>
           <p className="text-muted-foreground text-lg md:text-xl font-meme max-w-xl mx-auto">
             Everything we've shipped so far. No fluff, just features.
@@ -135,4 +135,4 @@ const Roadmap = () => {
   );
 };
 
-export default Roadmap;
+export default ImplementationPath;
