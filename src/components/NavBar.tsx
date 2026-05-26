@@ -25,6 +25,7 @@ const NavBar = () => {
           <a href="/#features" className="hover:text-primary transition-colors">Features</a>
           <a href="/#pricing" className="hover:text-primary transition-colors">Pricing</a>
           <a href="/status" className="hover:text-primary transition-colors">Status</a>
+          <a href="/briebattlepass" className="hover:text-primary transition-colors">Battle Pass 🧀</a>
         </div>
         {user ? (
           <>
