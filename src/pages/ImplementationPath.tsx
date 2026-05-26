@@ -1,4 +1,4 @@
-import { CheckCircle2, Sparkles, Shield, CreditCard, LayoutDashboard, Upload, Server, Eye, Lock, Wrench, ArrowUpRight } from "lucide-react";
+import { Sparkles, Shield, CreditCard, LayoutDashboard, Upload, Server, Eye, Lock, Wrench, ArrowUpRight } from "lucide-react";
 import NavBar from "@/components/NavBar";
 import FooterSection from "@/components/FooterSection";
 
@@ -82,16 +82,13 @@ const ImplementationPath = () => {
             </p>
           </div>
 
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {milestones.map((item, i) => (
               <div
                 key={i}
                 className="group rounded-xl border border-border bg-card p-6 card-hover hover:border-primary/30 transition-colors"
               >
                 <div className="flex items-start gap-4">
-                  <div className="hidden sm:flex mt-1 w-8 h-8 rounded-full bg-primary/10 border border-primary/30 items-center justify-center flex-shrink-0">
-                    <CheckCircle2 className="w-4 h-4 text-primary" />
-                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="p-1.5 rounded-lg bg-muted">
