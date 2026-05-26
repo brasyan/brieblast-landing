@@ -1,4 +1,4 @@
-import { Server, Zap, Shield, Globe, Clock, HeartHandshake } from "lucide-react";
+import { Zap, Shield, Globe, Clock, HeartHandshake } from "lucide-react";
 
 const features = [
   {
@@ -38,9 +38,9 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Briescan",
-    description: "Blazing speed, ultimate freedom. Do What The F*ck You Want To Public License energy, zero gatekeeping. Go clank!",
-    meme: "⚙️",
+    title: "Briescan™",
+    description: "Our automated security scanner that keeps your site safe from vulnerabilities, malware, and bad actors. Stay protected 24/7.",
+    meme: "🔍",
     glowClass: "glow-cheese",
   },
 ];
