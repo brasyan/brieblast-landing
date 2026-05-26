@@ -20,6 +20,7 @@ const FooterSection = () => {
               <li className="hover:text-primary transition-colors"><a href="/features">Full Features</a></li>
               <li className="hover:text-primary transition-colors"><a href="/#pricing">Pricing</a></li>
               <li className="hover:text-primary transition-colors"><a href="/status">Status Page</a></li>
+              <li className="hover:text-primary transition-colors"><a href="/implementation-path">Implementation Path</a></li>
               <li className="hover:text-primary transition-colors"><a href="/blog">Blog</a></li>
             </ul>
           </div>
