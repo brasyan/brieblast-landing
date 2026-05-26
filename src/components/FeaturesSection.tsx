@@ -43,6 +43,13 @@ const features = [
     meme: "🔒",
     glowClass: "glow-cyan",
   },
+  {
+    icon: Shield,
+    title: "Briescan",
+    description: "Blazing speed, ultimate freedom. Do What The F*ck You Want To Public License energy, zero gatekeeping. Go clank!",
+    meme: "⚙️",
+    glowClass: "glow-cheese",
+  },
 ];
 
 const FeaturesSection = () => {
