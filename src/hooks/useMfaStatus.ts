@@ -35,29 +35,36 @@ export function useMfaStatus(): MfaStatus {
     setLoading(true);
     setError(null);
 
-    const [{ data: profile, error: profileError }, factorsResult, aalResult] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("two_factor_required")
-        .eq("id", user.id)
-        .maybeSingle(),
-      supabase.auth.mfa.listFactors(),
-      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-    ]);
+    try {
+      const [{ data: profile, error: profileError }, factorsResult, aalResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("two_factor_required")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase.auth.mfa.listFactors(),
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+      ]);
 
-    if (profileError) {
-      setError(profileError.message);
-    } else if (factorsResult.error) {
-      setError(factorsResult.error.message);
-    } else if (aalResult.error) {
-      setError(aalResult.error.message);
-    } else {
-      setProfileRequires2fa(Boolean(profile?.two_factor_required));
-      setVerifiedFactors(factorsResult.data.totp);
-      setCurrentLevel(aalResult.data.currentLevel);
+      if (profileError) {
+        setError(profileError.message);
+      } else if (factorsResult.error) {
+        setError(factorsResult.error.message);
+      } else if (aalResult.error) {
+        setError(aalResult.error.message);
+      } else {
+        setProfileRequires2fa(Boolean(profile?.two_factor_required));
+        setVerifiedFactors(factorsResult.data.totp);
+        setCurrentLevel(aalResult.data.currentLevel);
+      }
+    } catch (err) {
+      // A thrown rejection (network blip, aborted fetch) used to leave
+      // loading=true forever and stick ProtectedRoute on "Loading…" until a
+      // hard reload. Always surface as an error and release the spinner.
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [user]);
 
   useEffect(() => {
