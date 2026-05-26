@@ -6,14 +6,14 @@ const FooterSection = () => {
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8 sm:mb-12">
           <div className="sm:col-span-2 md:col-span-2">
-            <h3 className="text-xl sm:text-2xl font-bold mb-2">
+            <h3 className="text-xl sm:text-2xl font-bold mb-2 text-center sm:text-left">
               <span className="text-gradient-cheese">Brie</span>Hosting<span className="text-secondary">.be</span>
             </h3>
-            <p className="text-muted-foreground font-meme text-xs sm:text-sm max-w-sm">
+            <p className="text-muted-foreground font-meme text-xs sm:text-sm max-w-sm mx-auto sm:mx-0">
               Belgian hosting that slaps harder than a waffle iron at 6AM. Made with 🧀 in Belgium.
             </p>
           </div>
-          <div>
+          <div className="text-center sm:text-left">
             <h4 className="font-bold text-foreground mb-2 sm:mb-3 text-sm sm:text-base">Links</h4>
             <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-muted-foreground">
               <li className="hover:text-primary transition-colors"><a href="/#features">Features</a></li>
@@ -24,7 +24,7 @@ const FooterSection = () => {
               <li className="hover:text-primary transition-colors"><a href="/blog">Blog</a></li>
             </ul>
           </div>
-          <div>
+          <div className="text-center sm:text-left">
             <h4 className="font-bold text-foreground mb-2 sm:mb-3 text-sm sm:text-base">Legal</h4>
             <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-muted-foreground">
               <li className="hover:text-primary transition-colors"><Link to="/terms">Terms</Link></li>
