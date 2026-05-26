@@ -27,32 +27,36 @@ export function useProfile() {
       return;
     }
 
-    // Try to fetch existing profile
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (data) {
-      setProfile(data as Profile);
-    } else if (error?.code === "PGRST116") {
-      // No row found — create one (handles users created before migration)
-      const { data: newProfile, error: upsertError } = await supabase
+    try {
+      // Try to fetch existing profile
+      const { data, error } = await supabase
         .from("profiles")
-        .upsert({ id: user.id, plan: "none", two_factor_required: false })
-        .select()
+        .select("*")
+        .eq("id", user.id)
         .single();
-      if (newProfile) {
-        setProfile(newProfile as Profile);
-      } else if (upsertError) {
-        setError(upsertError.message);
-      }
-    } else if (error) {
-      setError(error.message);
-    }
 
-    setLoading(false);
+      if (data) {
+        setProfile(data as Profile);
+      } else if (error?.code === "PGRST116") {
+        // No row found — create one (handles users created before migration)
+        const { data: newProfile, error: upsertError } = await supabase
+          .from("profiles")
+          .upsert({ id: user.id, plan: "none", two_factor_required: false })
+          .select()
+          .single();
+        if (newProfile) {
+          setProfile(newProfile as Profile);
+        } else if (upsertError) {
+          setError(upsertError.message);
+        }
+      } else if (error) {
+        setError(error.message);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

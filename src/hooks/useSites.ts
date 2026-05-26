@@ -70,16 +70,21 @@ export function useSites() {
       return;
     }
     setError(null);
-    const { data, error: queryError } = await supabase
-      .from("sites")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (queryError) {
-      setError(queryError.message);
-    } else {
-      setSites((data ?? []) as Site[]);
+    try {
+      const { data, error: queryError } = await supabase
+        .from("sites")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (queryError) {
+        setError(queryError.message);
+      } else {
+        setSites((data ?? []) as Site[]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [user]);
 
   useEffect(() => {
