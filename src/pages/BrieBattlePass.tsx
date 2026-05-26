@@ -203,41 +203,114 @@ const BrieBattlePass = () => {
         </div>
       </section>
 
-      {/* Rewards Track */}
+      {/* Fortnite-style Battle Pass Bar */}
       <section className="py-24 px-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Reward <span className="text-gradient-cheese">Track</span>
+              <span className="text-gradient-cheese">Season 1</span> Battle Pass
             </h2>
-            <p className="text-muted-foreground font-meme">
+            <p className="text-muted-foreground font-meme mb-2">
               10 levels of pure uncut dopamine. Every level unlocks something stupid.
             </p>
+            <div className="inline-flex items-center gap-3 text-sm">
+              <span className="text-muted-foreground">Level 4 / 10</span>
+              <span className="w-32 h-2 rounded-full bg-muted overflow-hidden">
+                <span className="block h-full w-[40%] rounded-full bg-gradient-to-r from-primary to-secondary" />
+              </span>
+              <span className="text-gradient-cheese font-bold">4,200 / 50,000 XP</span>
+            </div>
           </div>
-          <div className="space-y-3">
-            {rewards.map((reward) => (
-              <div
-                key={reward.level}
-                className="rounded-xl border border-border bg-card p-4 flex items-center justify-between card-hover"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                    reward.level <= 3 ? "bg-primary/20 text-primary" :
-                    reward.level <= 6 ? "bg-secondary/20 text-secondary" :
-                    "bg-accent/20 text-accent"
-                  }`}>
-                    {reward.level}
+
+          <div className="relative overflow-x-auto pb-4">
+            <div className="flex items-center gap-0 min-w-[700px] px-4">
+              {rewards.map((reward, i) => {
+                const unlocked = reward.level <= 4;
+                const isCurrent = reward.level === 4;
+                const nextLocked = reward.level === 5;
+                return (
+                  <div key={reward.level} className="flex items-center flex-1 last:flex-none last:mr-0">
+                    <div className="flex flex-col items-center relative">
+                      {/* Reward icon/badge */}
+                      <div className={`relative z-10 w-14 h-14 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center text-lg sm:text-xl border-2 transition-all duration-300 ${
+                        unlocked
+                          ? "border-primary bg-card shadow-[0_0_20px_hsl(var(--cheese-glow)/0.3)]"
+                          : nextLocked
+                          ? "border-primary/40 bg-card/80 animate-pulse-glow"
+                          : "border-border bg-muted/50 opacity-50"
+                      }`}>
+                        {unlocked ? reward.reward.split(" ")[0] : "🔒"}
+                        {isCurrent && (
+                          <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-lg">
+                            ▶
+                          </div>
+                        )}
+                      </div>
+                      {/* Level label */}
+                      <p className={`mt-2 text-xs font-bold ${
+                        unlocked ? "text-foreground" : "text-muted-foreground"
+                      }`}>
+                        Lvl {reward.level}
+                      </p>
+                      {/* Reward name */}
+                      <p className={`text-[10px] leading-tight text-center max-w-[90px] truncate ${
+                        unlocked ? "text-primary" : "text-muted-foreground"
+                      }`}>
+                        {reward.reward.split("(")[0].trim()}
+                      </p>
+                      {/* XP label */}
+                      <p className="text-[9px] text-muted-foreground font-meme mt-0.5">
+                        {reward.xp.toLocaleString()} XP
+                      </p>
+                    </div>
+                    {/* Connector line */}
+                    {i < rewards.length - 1 && (
+                      <div className={`flex-1 h-1 mx-1 sm:mx-2 rounded-full ${
+                        unlocked ? "bg-gradient-to-r from-primary to-secondary" : "bg-muted"
+                      }`} />
+                    )}
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{reward.reward}</p>
-                    <p className="text-xs text-muted-foreground font-meme">Level {reward.level}</p>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Detailed list below */}
+          <div className="mt-16 max-w-4xl mx-auto">
+            <div className="space-y-3">
+              {rewards.map((reward) => (
+                <div
+                  key={reward.level}
+                  className={`rounded-xl border p-4 flex items-center justify-between card-hover ${
+                    reward.level === 4
+                      ? "border-primary/50 bg-primary/5 glow-cheese"
+                      : reward.level < 4
+                      ? "border-border bg-card"
+                      : "border-border bg-card/60 opacity-60"
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                      reward.level <= 3 ? "bg-primary/20 text-primary" :
+                      reward.level <= 6 ? "bg-secondary/20 text-secondary" :
+                      "bg-accent/20 text-accent"
+                    }`}>
+                      {reward.level}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{reward.reward}</p>
+                      <p className="text-xs text-muted-foreground font-meme">Level {reward.level}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-meme text-gradient-cheese">{reward.xp.toLocaleString()} XP</p>
+                    {reward.level < 4 && <p className="text-[10px] text-primary font-bold">✅ Unlocked</p>}
+                    {reward.level === 4 && <p className="text-[10px] text-secondary font-bold">◀ Current</p>}
+                    {reward.level > 4 && <p className="text-[10px] text-muted-foreground">🔒 Locked</p>}
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-meme text-gradient-cheese">{reward.xp.toLocaleString()} XP</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
