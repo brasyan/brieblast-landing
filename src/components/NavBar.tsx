@@ -24,7 +24,6 @@ const NavBar = () => {
         <div className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
           <a href="/#features" className="hover:text-primary transition-colors">Features</a>
           <a href="/#pricing" className="hover:text-primary transition-colors">Pricing</a>
-          <a href="/roadmap" className="hover:text-primary transition-colors">Roadmap</a>
           <a href="/status" className="hover:text-primary transition-colors">Status</a>
         </div>
         {user ? (
