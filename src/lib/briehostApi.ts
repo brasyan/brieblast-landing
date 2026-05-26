@@ -361,6 +361,97 @@ export async function skipPayment(planId: string): Promise<{ plan: string; inten
   return (await resp.json()) as { plan: string; intentId: string };
 }
 
+export async function redeploySiteFromZip(
+  siteId: string,
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<{ siteId: string; status: string }> {
+  if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
+
+  const token = await getAccessToken();
+  const form = new FormData();
+  form.append("file", file);
+
+  return await new Promise<{ siteId: string; status: string }>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${BASE_URL}/api/sites/${siteId}/redeploy-zip`);
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    if (API_KEY) xhr.setRequestHeader("x-api-key", API_KEY);
+
+    xhr.upload.onprogress = (e) => {
+      if (onProgress && e.lengthComputable) onProgress(e.loaded / e.total);
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(new BriehostApiError("Invalid response from server", xhr.status));
+        }
+      } else {
+        const raw = xhr.responseText;
+        let message = raw;
+        let reason: string | undefined;
+        try {
+          const parsed = JSON.parse(raw);
+          const d = parsed?.detail;
+          if (typeof d === "string") message = d;
+          else if (d && typeof d === "object") {
+            message = (d as Record<string, unknown>).message?.toString() ?? raw;
+            reason = (d as Record<string, unknown>).reason?.toString();
+          }
+        } catch {
+          // keep raw
+        }
+        reject(new BriehostApiError(message || `Update failed (${xhr.status})`, xhr.status, reason));
+      }
+    };
+
+    xhr.onerror = () => reject(new BriehostApiError("Network error", 0));
+    xhr.send(form);
+  });
+}
+
+export async function redeploySiteFromRepo(
+  siteId: string,
+  repoUrl: string,
+  branch?: string,
+): Promise<{ siteId: string; status: string }> {
+  if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
+  const token = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (API_KEY) headers["x-api-key"] = API_KEY;
+
+  const body: { repoUrl: string; branch?: string } = { repoUrl };
+  if (branch && branch.trim()) body.branch = branch.trim();
+
+  const resp = await fetch(`${BASE_URL}/api/sites/${siteId}/redeploy-from-repo`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    let detail = await resp.text();
+    let reason: string | undefined;
+    try {
+      const parsed = JSON.parse(detail);
+      detail = parsed.detail ?? detail;
+      reason = parsed.reason;
+    } catch {
+      // keep raw
+    }
+    throw new BriehostApiError(detail || `Update failed (${resp.status})`, resp.status, reason);
+  }
+
+  return (await resp.json()) as { siteId: string; status: string };
+}
+
 export async function deleteSite(siteId: string): Promise<void> {
   if (!BASE_URL) throw new BriehostApiError("API URL not configured", 0);
   const token = await getAccessToken();
