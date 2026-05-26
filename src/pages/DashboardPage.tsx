@@ -60,6 +60,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import SiteUploadDialog from "@/components/SiteUploadDialog";
+import SiteUpdateDialog from "@/components/SiteUpdateDialog";
 
 const PUBLIC_DOMAIN = import.meta.env.VITE_PUBLIC_DOMAIN || "briehosting.be";
 
@@ -173,6 +174,9 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [redeployingId, setRedeployingId] = useState<string | null>(null);
   const [redeployError, setRedeployError] = useState<string | null>(null);
+  // Update-via-modal target: zip-uploaded sites have no repo_url for one-click,
+  // and repo-uploaded sites can use the modal to swap source.
+  const [updateSiteId, setUpdateSiteId] = useState<string | null>(null);
   const [howToOpen, setHowToOpen] = useState(false);
   const [supportTicketOpen, setSupportTicketOpen] = useState(false);
   const [ticketForm, setTicketForm] = useState({ email: user?.email || "", subject: "", message: "" });
@@ -967,17 +971,32 @@ export default function DashboardPage() {
                           >
                             Details
                           </button>
-                          {site.repo_url && (site.status === "live" || site.status === "failed") && (
-                            <button
-                              type="button"
-                              onClick={() => handleRedeploySite(site.id)}
-                              disabled={redeployingId === site.id}
-                              className="rounded-full border border-yellow-400/40 bg-yellow-400/10 text-yellow-400 px-3 py-1.5 transition hover:border-yellow-400/70 hover:bg-yellow-400/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                              title={`Re-pull ${site.repo_url}${site.repo_branch ? ` (${site.repo_branch})` : ""} and redeploy`}
-                            >
-                              <RefreshCw className={`w-3 h-3 ${redeployingId === site.id ? "animate-spin" : ""}`} />
-                              {redeployingId === site.id ? "Updating..." : "Update"}
-                            </button>
+                          {(site.status === "live" || site.status === "failed") && (
+                            <>
+                              {site.repo_url && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRedeploySite(site.id)}
+                                  disabled={redeployingId === site.id}
+                                  className="rounded-full border border-yellow-400/40 bg-yellow-400/10 text-yellow-400 px-3 py-1.5 transition hover:border-yellow-400/70 hover:bg-yellow-400/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                                  title={`Re-pull ${site.repo_url}${site.repo_branch ? ` (${site.repo_branch})` : ""} and redeploy`}
+                                >
+                                  <RefreshCw className={`w-3 h-3 ${redeployingId === site.id ? "animate-spin" : ""}`} />
+                                  {redeployingId === site.id ? "Updating..." : "Re-pull"}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setUpdateSiteId(site.id)}
+                                className="rounded-full border border-yellow-400/40 bg-yellow-400/10 text-yellow-400 px-3 py-1.5 transition hover:border-yellow-400/70 hover:bg-yellow-400/20 flex items-center gap-1.5"
+                                title={site.repo_url
+                                  ? "Upload a new zip or switch source"
+                                  : "Upload a new zip or switch to a git repo"}
+                              >
+                                <Upload className="w-3 h-3" />
+                                Update
+                              </button>
+                            </>
                           )}
                           {(site.status === "failed" || site.status === "scan_failed") && (
                             <button className="rounded-full border border-border bg-muted/40 text-muted-foreground px-3 py-1.5 transition hover:text-foreground hover:border-yellow-400/70">
@@ -1865,6 +1884,13 @@ export default function DashboardPage() {
 
       {/* Upload Dialog */}
       <SiteUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} onUploaded={refetchSites} />
+
+      <SiteUpdateDialog
+        site={sites.find((s) => s.id === updateSiteId) ?? null}
+        open={!!updateSiteId}
+        onOpenChange={(o) => !o && setUpdateSiteId(null)}
+        onUpdated={refetchSites}
+      />
     </div>
   );
 }
