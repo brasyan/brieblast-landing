@@ -16,12 +16,12 @@ const NavBar = () => {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="font-bold text-lg sm:text-xl">
+      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-center gap-4 sm:gap-8">
+        <Link to="/" className="font-bold text-lg sm:text-xl flex-shrink-0">
           <span className="text-gradient-cheese">Brie</span>
           <span className="text-foreground">Hosting</span>
         </Link>
-        <div className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+        <div className="hidden md:flex items-center justify-center gap-6 text-sm text-muted-foreground flex-1">
           <a href="/#features" className="hover:text-primary transition-colors">Features</a>
           <a href="/#pricing" className="hover:text-primary transition-colors">Pricing</a>
           <a href="/status" className="hover:text-primary transition-colors">Status</a>
