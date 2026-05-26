@@ -20,8 +20,8 @@ const BriescanSection = () => {
               Introducing <span className="text-gradient-cheese">Briescan™</span>
             </h2>
             <p className="mt-4 text-sm sm:text-lg text-muted-foreground font-meme max-w-3xl">
-              Blazing speed, ultimate freedom. Released under the WTFPL license (Do What The F*ck You Want To Public
-              License). Go clank!
+              Blazing speed, ultimate freedom. Do What The F*ck You Want To Public License energy, zero gatekeeping.
+              Go clank!
             </p>
             <p className="mt-4 inline-block rounded-md border border-primary/50 bg-primary/15 px-3 py-2 text-xs sm:text-sm font-semibold text-primary">
               Released under the WTFPL license – do what you want!

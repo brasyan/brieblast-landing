@@ -7,9 +7,7 @@ describe("BriescanSection", () => {
     render(<BriescanSection />);
 
     expect(screen.getByRole("heading", { name: /introducing briescan™/i })).toBeInTheDocument();
-    expect(
-      screen.getByText(/released under the wtfpl license \(do what the f\*ck you want to public license\)\. go clank!/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/do what the f\*ck you want to public license energy, zero gatekeeping\. go clank!/i)).toBeInTheDocument();
     expect(screen.getByText(/released under the wtfpl license – do what you want!/i)).toBeInTheDocument();
   });
 });
