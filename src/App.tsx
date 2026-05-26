@@ -26,7 +26,6 @@ import PrivacyPage from "./pages/PrivacyPage";
 import ResponsibleDisclosurePage from "./pages/ResponsibleDisclosurePage";
 import SiteNotFoundPage from "./pages/SiteNotFoundPage";
 import PaymentReturnPage from "./pages/PaymentReturnPage";
-import BrieBattlePass from "./pages/BrieBattlePass";
 
 const queryClient = new QueryClient();
 
@@ -42,7 +41,6 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/features" element={<Features />} />
             <Route path="/status" element={<Status />} />
-            <Route path="/briebattlepass" element={<BrieBattlePass />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
